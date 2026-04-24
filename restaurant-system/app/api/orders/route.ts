@@ -1,10 +1,13 @@
-import { createOrder } from '@/src/backend/services/order.service'
+import { createOrder, getAllOrders } from '@/src/backend/services/order.service'
 import { createOrderSchema } from '@/src/backend/validators/order.schema'
 
 export async function GET() {
-  return Response.json({
-    message: 'Orders API working',
-  })
+  try {
+    const orders = await getAllOrders()
+    return Response.json(orders)
+  } catch (error) {
+    return Response.json({ error: 'Failed to fetch orders' }, { status: 500 })
+  }
 }
 
 export async function POST(req: Request) {

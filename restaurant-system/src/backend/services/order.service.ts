@@ -1,9 +1,14 @@
+import { createOrder as createOrderRepo, getOrders, getOrderById } from '../repositories/order.repo'
+
 export async function createOrder(data: any) {
-  // Mock implementation - replace with actual database logic later
-  return {
-    id: Date.now(),
-    ...data,
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-  }
+  // Add any business logic here
+  return await createOrderRepo(data)
+}
+
+export async function getAllOrders() {
+  return await getOrders()
+}
+
+export async function getOrder(id: number) {
+  return await getOrderById(id)
 }
