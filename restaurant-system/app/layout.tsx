@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+// 👇 เพิ่มบรรทัดนี้
+import { CartProvider } from "@/src/backend/context/CartContext";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -28,13 +31,13 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        
-       
 
-        {/* ✅ เนื้อหาแต่ละหน้า */}
-        <main className="flex-1">
-          {children}
-        </main>
+        {/* ✅ ครอบทั้งแอป */}
+        <CartProvider>
+          <main className="flex-1">
+            {children}
+          </main>
+        </CartProvider>
 
       </body>
     </html>

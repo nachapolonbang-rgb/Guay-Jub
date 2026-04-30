@@ -22,10 +22,15 @@ export default function CartPage() {
   const [code, setCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [error, setError] = useState('');
+  const [mounted, setMounted] = useState(false);
+  const [removingId, setRemovingId] = useState<number | null>(null);
+  const [codeApplied, setCodeApplied] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     const data = localStorage.getItem('cart');
     if (data) setCart(JSON.parse(data));
+    setTimeout(() => setMounted(true), 50);
   }, []);
 
   const saveCart = (newCart: CartItem[]) => {
@@ -38,182 +43,339 @@ export default function CartPage() {
   };
 
   const decrease = (id: number) => {
-    saveCart(
-      cart
-        .map(i => i.id === id ? { ...i, qty: i.qty - 1 } : i)
-        .filter(i => i.qty > 0)
-    );
+    const item = cart.find(i => i.id === id);
+    if (item && item.qty === 1) {
+      setRemovingId(id);
+      setTimeout(() => {
+        saveCart(cart.filter(i => i.id !== id));
+        setRemovingId(null);
+      }, 300);
+    } else {
+      saveCart(cart.map(i => i.id === id ? { ...i, qty: i.qty - 1 } : i));
+    }
   };
 
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
   const total = Math.max(subtotal - discount, 0);
+  const itemCount = cart.reduce((sum, i) => sum + i.qty, 0);
 
   const applyCode = () => {
     const value = DISCOUNT_CODES[code.toUpperCase()];
     if (!value) {
       setError('โค้ดไม่ถูกต้อง');
       setDiscount(0);
+      setCodeApplied(false);
       return;
     }
-
     setError('');
     setDiscount(value);
+    setCodeApplied(true);
+  };
+
+  const handlePay = () => {
+    setPaying(true);
+    setTimeout(() => setPaying(false), 2000);
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF8F2]">
+    <div className="min-h-screen bg-[#FFF8F2] relative overflow-x-hidden">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap');
+        * { font-family: 'Sarabun', sans-serif; }
+
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideRight {
+          from { opacity: 0; transform: translateX(-20px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideLeft {
+          from { opacity: 0; transform: translateX(20px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes fadeOut {
+          from { opacity: 1; transform: scale(1); max-height: 120px; }
+          to   { opacity: 0; transform: scale(0.95); max-height: 0; padding: 0; margin: 0; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; } to { opacity: 1; }
+        }
+        @keyframes shake {
+          0%,100% { transform: translateX(0); }
+          20%     { transform: translateX(-6px); }
+          40%     { transform: translateX(6px); }
+          60%     { transform: translateX(-4px); }
+          80%     { transform: translateX(4px); }
+        }
+        @keyframes pulse-soft {
+          0%,100% { opacity: 1; }
+          50%     { opacity: 0.6; }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes popIn {
+          from { transform: scale(0.8); opacity: 0; }
+          to   { transform: scale(1);   opacity: 1; }
+        }
+        @keyframes shimmerPay {
+          0%   { background-position: -200% center; }
+          100% { background-position:  200% center; }
+        }
+
+        .slide-up    { animation: slideUp    0.45s ease both; }
+        .slide-right { animation: slideRight 0.45s ease both; }
+        .slide-left  { animation: slideLeft  0.45s ease both; }
+        .fade-in     { animation: fadeIn     0.3s ease both; }
+        .pop-in      { animation: popIn      0.3s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+        .removing { animation: fadeOut 0.3s ease forwards; overflow: hidden; }
+
+        .shake { animation: shake 0.4s ease; }
+
+        .d-1 { animation-delay: 0.05s; }
+        .d-2 { animation-delay: 0.12s; }
+        .d-3 { animation-delay: 0.19s; }
+        .d-4 { animation-delay: 0.26s; }
+        .d-5 { animation-delay: 0.33s; }
+
+        .card-hover {
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card-hover:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 28px rgba(61,26,0,0.09);
+        }
+
+        .qty-btn {
+          width: 30px; height: 30px;
+          border-radius: 50%;
+          border: none;
+          font-size: 16px; font-weight: 700;
+          cursor: pointer;
+          transition: transform 0.15s, background 0.15s;
+          display: flex; align-items: center; justify-content: center;
+          line-height: 1;
+        }
+        .qty-btn:active { transform: scale(0.88); }
+
+        .pay-btn {
+          background-size: 200% auto;
+          background-image: linear-gradient(90deg, #3D1A00 0%, #7C3A10 40%, #3D1A00 100%);
+          transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .pay-btn:hover:not(:disabled) {
+          animation: shimmerPay 1.5s linear infinite;
+          transform: scale(1.02);
+          box-shadow: 0 6px 20px rgba(61,26,0,0.35);
+        }
+        .pay-btn:active:not(:disabled) { transform: scale(0.97); }
+
+        .code-input:focus {
+          border-color: #E8530A;
+          box-shadow: 0 0 0 3px rgba(232,83,10,0.12);
+        }
+
+        .summary-card {
+          position: sticky;
+          top: 24px;
+        }
+
+        .item-img {
+          transition: transform 0.3s ease;
+        }
+        .card-hover:hover .item-img {
+          transform: scale(1.05);
+        }
+      `}</style>
 
       <Navbar />
 
-      <div className="max-w-5xl mx-auto px-6 py-10">
+      <div className="max-w-5xl mx-auto px-5 py-8">
 
-        <h1 className="text-3xl font-black text-[#3d200a] mb-8">
-          🛒 ตะกร้าของคุณ
-        </h1>
+        {/* HEADER */}
+        <div className={`flex items-center justify-between mb-7 ${mounted ? 'slide-right' : 'opacity-0'}`}>
+          <div>
+            <h1 className="text-2xl font-extrabold text-[#3D1A00]">ตะกร้าของคุณ</h1>
+            {cart.length > 0 && (
+              <p className="text-sm text-[#9A6651] mt-0.5">{itemCount} รายการ</p>
+            )}
+          </div>
+          {cart.length > 0 && (
+            <span className="bg-[#3D1A00] text-white text-xs font-bold px-3 py-1 rounded-full pop-in">
+              🛒 {itemCount}
+            </span>
+          )}
+        </div>
 
         {cart.length === 0 ? (
-          <div className="text-center text-gray-500 mt-20 text-lg">
-            ยังไม่มีสินค้าในตะกร้า 😢
+          <div className={`text-center py-24 ${mounted ? 'fade-in' : 'opacity-0'}`}>
+            <div className="text-5xl mb-4">🛒</div>
+            <p className="text-[#9A6651] text-base font-medium">ยังไม่มีสินค้าในตะกร้า</p>
+            <p className="text-[#C4A99A] text-sm mt-1">เพิ่มเมนูที่ชอบได้เลย!</p>
           </div>
         ) : (
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-6">
 
-            {/* LEFT: LIST */}
-            <div className="md:col-span-2 space-y-4">
-
-              {cart.map(item => (
+            {/* LEFT: CART ITEMS */}
+            <div className="md:col-span-2 space-y-3">
+              {cart.map((item, i) => (
                 <div
                   key={item.id}
-                  className="
-                    bg-white p-4 rounded-2xl shadow 
-                    flex items-center justify-between
-                    border border-orange-100
-                  "
+                  className={`bg-white rounded-2xl border border-[#F3DDD0] card-hover overflow-hidden
+                    ${removingId === item.id ? 'removing' : mounted ? `slide-up d-${Math.min(i + 1, 5) as 1|2|3|4|5}` : 'opacity-0'}`}
                 >
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={item.image}
-                      className="w-20 h-20 rounded-xl object-cover"
-                    />
+                  <div className="flex items-center justify-between p-4 gap-3">
 
-                    <div>
-                      <h3 className="font-bold text-[#3d200a]">
-                        {item.name}
-                      </h3>
-                      <p className="text-orange-500 font-bold">
-                        ฿{item.price}
-                      </p>
+                    {/* IMAGE */}
+                    <div className="w-18 h-18 rounded-xl overflow-hidden flex-shrink-0 bg-orange-50" style={{width:72,height:72}}>
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-full h-full object-cover item-img"
+                      />
                     </div>
-                  </div>
 
-                  {/* QTY */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => decrease(item.id)}
-                      className="w-8 h-8 bg-gray-200 rounded-full hover:bg-red-200"
-                    >
-                      -
-                    </button>
+                    {/* INFO */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-[#3D1A00] text-sm truncate">{item.name}</h3>
+                      <p className="text-[#E8530A] font-bold text-sm mt-0.5">฿{item.price.toLocaleString()}</p>
+                    </div>
 
-                    <span className="font-bold">{item.qty}</span>
+                    {/* QTY CONTROLS */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => decrease(item.id)}
+                        className="qty-btn"
+                        style={{ background: item.qty === 1 ? '#FEE2E2' : '#F3F4F6', color: item.qty === 1 ? '#EF4444' : '#374151' }}
+                      >
+                        {item.qty === 1 ? '🗑' : '−'}
+                      </button>
 
-                    <button
-                      onClick={() => increase(item.id)}
-                      className="w-8 h-8 bg-gray-200 rounded-full hover:bg-green-200"
-                    >
-                      +
-                    </button>
-                  </div>
+                      <span
+                        key={item.qty}
+                        className="font-bold text-[#3D1A00] text-sm w-6 text-center pop-in"
+                      >
+                        {item.qty}
+                      </span>
 
-                  <div className="font-bold text-[#3d200a]">
-                    ฿{item.price * item.qty}
+                      <button
+                        onClick={() => increase(item.id)}
+                        className="qty-btn"
+                        style={{ background: '#FFF3EB', color: '#E8530A' }}
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {/* LINE TOTAL */}
+                    <div className="text-right flex-shrink-0 w-16">
+                      <p className="font-bold text-[#3D1A00] text-sm">฿{(item.price * item.qty).toLocaleString()}</p>
+                      {item.qty > 1 && (
+                        <p className="text-xs text-[#C4A99A]">x{item.qty}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
-
             </div>
 
             {/* RIGHT: SUMMARY */}
-            <div className="bg-white p-6 rounded-2xl shadow border border-orange-100 h-fit">
+            <div className={`summary-card ${mounted ? 'slide-left d-2' : 'opacity-0'}`}>
+              <div className="bg-white rounded-2xl border border-[#F3DDD0] p-5">
 
-              <h2 className="font-bold text-lg mb-4 text-[#3d200a]">
-                สรุปคำสั่งซื้อ
-              </h2>
+                <h2 className="text-xs font-bold text-[#7C3A10] uppercase tracking-widest mb-4">
+                  📋 สรุปคำสั่งซื้อ
+                </h2>
 
-              {/* DISCOUNT */}
-              <div className="mb-4">
-                <input
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="ใส่โค้ดส่วนลด"
-                  className="
-                    w-full p-3 rounded-xl 
-                    border border-gray-300 
-                    focus:ring-2 focus:ring-orange-300
-                    outline-none text-black
-                  "
-                />
+                {/* DISCOUNT CODE */}
+                <div className="mb-5">
+                  <label className="text-xs font-semibold text-[#9A6651] mb-1.5 block">โค้ดส่วนลด</label>
+                  <div className="flex gap-2">
+                    <input
+                      value={code}
+                      onChange={e => { setCode(e.target.value); setError(''); }}
+                      onKeyDown={e => e.key === 'Enter' && applyCode()}
+                      placeholder="SAVE10 / FOOD20 / VIP50"
+                      className={`code-input flex-1 px-3 py-2 rounded-xl border text-sm outline-none transition-all text-[#3D1A00] bg-[#FFFAF7]
+                        ${error ? 'border-red-300' : codeApplied ? 'border-green-400' : 'border-[#F3DDD0]'}`}
+                    />
+                    <button
+                      onClick={applyCode}
+                      className="bg-[#E8530A] hover:bg-[#C8440A] active:scale-95 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                    >
+                      ใช้
+                    </button>
+                  </div>
 
+                  {error && (
+                    <p className="text-red-500 text-xs mt-1.5 shake">{error}</p>
+                  )}
+                  {codeApplied && discount > 0 && (
+                    <p className="text-green-600 text-xs mt-1.5 pop-in flex items-center gap-1">
+                      ✓ ประหยัดได้ ฿{discount}
+                    </p>
+                  )}
+                </div>
+
+                {/* PRICE BREAKDOWN */}
+                <div className="space-y-2.5 text-sm border-t border-[#FFF0E6] pt-4">
+                  <div className="flex justify-between text-[#9A6651]">
+                    <span>ยอดรวม ({itemCount} รายการ)</span>
+                    <span>฿{subtotal.toLocaleString()}</span>
+                  </div>
+
+                  {discount > 0 && (
+                    <div className="flex justify-between text-green-600 pop-in">
+                      <span>ส่วนลด</span>
+                      <span>− ฿{discount}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-baseline pt-2 border-t border-[#FFF0E6] mt-1">
+                    <span className="font-bold text-[#3D1A00]">สุทธิ</span>
+                    <span
+                      key={total}
+                      className="text-xl font-extrabold text-[#E8530A] count-up"
+                    >
+                      ฿{total.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* PAY BUTTON */}
                 <button
-                  onClick={applyCode}
-                  className="
-                    w-full mt-2 
-                    bg-orange-500 text-white 
-                    py-2 rounded-xl font-bold
-                    hover:bg-orange-600
-                  "
+                  onClick={handlePay}
+                  disabled={paying}
+                  className="pay-btn w-full mt-5 text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"
                 >
-                  ใช้โค้ด
+                  {paying ? (
+                    <>
+                      <span
+                        className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full"
+                        style={{ animation: 'spin 0.8s linear infinite' }}
+                      />
+                      กำลังดำเนินการ...
+                    </>
+                  ) : (
+                    '💳 ชำระเงิน'
+                  )}
                 </button>
 
-                {error && (
-                  <p className="text-red-500 text-sm mt-2">
-                    {error}
-                  </p>
-                )}
+                {/* TRUST BADGES */}
+                <div className="flex justify-center gap-4 mt-3">
+                  {['🔒 ปลอดภัย', '⚡ รวดเร็ว', '✅ ครบถ้วน'].map(b => (
+                    <span key={b} className="text-xs text-[#C4A99A]">{b}</span>
+                  ))}
+                </div>
 
-                {discount > 0 && (
-                  <p className="text-green-600 text-sm mt-2">
-                    ใช้โค้ดสำเร็จ - ฿{discount}
-                  </p>
-                )}
               </div>
-
-              {/* SUMMARY */}
-              <div className="space-y-2 text-sm text-gray-600">
-                <div className="flex justify-between">
-                  <span>ยอดรวม</span>
-                  <span>฿{subtotal}</span>
-                </div>
-
-                <div className="flex justify-between text-green-600">
-                  <span>ส่วนลด</span>
-                  <span>- ฿{discount}</span>
-                </div>
-
-                <div className="flex justify-between text-lg font-bold text-[#3d200a] border-t pt-3 mt-3">
-                  <span>สุทธิ</span>
-                  <span className="text-orange-500">฿{total}</span>
-                </div>
-              </div>
-
-              {/* PAY BUTTON */}
-              <button className="
-                w-full mt-6 
-                bg-[#3d200a] text-white 
-                py-4 rounded-xl 
-                text-lg font-bold
-                hover:bg-[#2a1607]
-                transition
-              ">
-                💳 ชำระเงิน
-              </button>
-
             </div>
 
           </div>
         )}
-
       </div>
     </div>
   );

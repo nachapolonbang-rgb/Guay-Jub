@@ -1,17 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-  const router = useRouter();
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // ✅ validation
   const isValid = email.includes('@') && password.length >= 6;
 
   const handleLogin = async () => {
@@ -30,7 +26,6 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        // 🔥 สำคัญ: reload เพื่อให้ Navbar detect user
         window.location.href = '/';
       } else {
         setError(data.message || 'Login failed');
@@ -43,78 +38,97 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#FFF3E8] to-[#FFE0CC] px-4">
+    <div className="min-h-screen flex bg-gradient-to-br from-[#fff6ee] to-[#ffe0cc]">
 
-      <div className="w-full max-w-md bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl p-8 space-y-6">
+      {/* LEFT IMAGE */}
+      <div className="hidden md:flex w-1/2 items-center justify-center p-10">
+        <img
+          src="/images/login-anime.png"
+          className="max-h-[80vh] object-contain drop-shadow-2xl"
+        />
+      </div>
 
-        {/* HEADER */}
-        <div className="text-center">
-          <h1 className="text-3xl font-black text-[#3d200a]">Welcome Back</h1>
-          <p className="text-sm text-gray-500">Login to continue 🍜</p>
-        </div>
+      {/* RIGHT FORM */}
+      <div className="flex w-full md:w-1/2 items-center justify-center px-6">
+        <div className="w-full max-w-md bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8">
 
-        {/* FORM */}
-        <div className="space-y-4">
+          {/* HEADER */}
+          <div className="mb-6 text-center">
+            <h1 className="text-4xl font-black text-[#3d200a]">
+              Member Login
+            </h1>
+            <p className="text-gray-500 text-sm mt-1">
+              เข้าสู่ระบบเพื่อสั่งอาหาร 🍜
+            </p>
+          </div>
 
           {/* EMAIL */}
-          <div>
+          <div className="mb-4">
             <label className="text-sm text-gray-600">Email</label>
             <input
               type="email"
               placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={`w-full p-3 rounded-xl mt-1 outline-none text-gray-800 border
-                ${email && !email.includes('@') 
-                  ? 'border-red-400 bg-red-50' 
-                  : 'border-gray-300 bg-white'}
-                focus:ring-2 focus:ring-[#e3523d]`}
+              className="w-full mt-1 px-5 py-3 rounded-full border border-orange-200 
+              bg-orange-50 text-gray-800 outline-none 
+              focus:ring-2 focus:ring-orange-400"
             />
           </div>
 
           {/* PASSWORD */}
-          <div>
+          <div className="mb-2">
             <label className="text-sm text-gray-600">Password</label>
             <input
               type="password"
-              placeholder="Enter password"
+              placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`w-full p-3 rounded-xl mt-1 outline-none text-gray-800 border
-                ${password && password.length < 6 
-                  ? 'border-red-400 bg-red-50' 
-                  : 'border-gray-300 bg-white'}
-                focus:ring-2 focus:ring-[#e3523d]`}
+              className="w-full mt-1 px-5 py-3 rounded-full border border-orange-200 
+              bg-orange-50 text-gray-800 outline-none 
+              focus:ring-2 focus:ring-orange-400"
             />
           </div>
 
-        </div>
+          <div className="text-right text-xs text-gray-400 mb-4">
+            Forgot password?
+          </div>
 
-        {/* BUTTON */}
-        <button
-          onClick={handleLogin}
-          disabled={!isValid || loading}
-          className={`w-full py-3 rounded-xl font-bold text-white transition
-            ${!isValid || loading
-              ? 'bg-gray-300 cursor-not-allowed'
-              : 'bg-[#e3523d] hover:bg-[#c94432] hover:scale-[1.02]'}`}
-        >
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
+          {/* LOGIN BUTTON */}
+          <button
+            onClick={handleLogin}
+            disabled={!isValid || loading}
+            className={`w-full py-3 rounded-full font-bold text-white text-lg transition-all
+              ${!isValid || loading
+                ? 'bg-gray-300 cursor-not-allowed'
+                : 'bg-gradient-to-r from-orange-400 to-orange-600 hover:scale-[1.03] shadow-lg'
+              }`}
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
 
-        {/* ERROR */}
-        {error && (
-          <p className="text-red-500 text-sm text-center">{error}</p>
-        )}
+          {/* ERROR */}
+          {error && (
+            <p className="text-red-500 text-sm text-center mt-3">
+              {error}
+            </p>
+          )}
 
-        {/* LINK */}
-        <p className="text-sm text-center text-gray-500">
-          Don't have an account?{' '}
-          <a href="/register" className="text-orange-500 font-semibold">
-            Register
+          {/* DIVIDER */}
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-[1px] bg-gray-200" />
+            <span className="text-xs text-gray-400">OR</span>
+            <div className="flex-1 h-[1px] bg-gray-200" />
+          </div>
+
+          {/* REGISTER */}
+          <a href="/register">
+            <button className="w-full py-3 rounded-full bg-orange-100 text-[#3d200a] font-bold hover:bg-orange-200 transition">
+              Create account
+            </button>
           </a>
-        </p>
 
+        </div>
       </div>
     </div>
   );
