@@ -7,34 +7,22 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-// ❌ Remove enum - SQLite doesn't support it
-// enum OrderStatus {
-//   PENDING
-//   COOKING
-//   DONE
-//   CANCELLED
-// }
-
 model Order {
   id        Int      @id @default(autoincrement())
   total     Float
   status    String   @default("PENDING")
   createdAt DateTime @default(now())
-
-  // ✅ เปลี่ยนจาก OrderItem? เป็น OrderItem[] 
-  // เพราะ 1 ออเดอร์ ปกติจะมีได้หลายรายการอาหารครับ
-  items     OrderItem[] 
+  items     OrderItem[]
 }
 
 model OrderItem {
-  id       Int    @id @default(autoincrement())
-  orderId  Int
-  name     String
-  price    Float
-  qty      Int
+  id      Int   @id @default(autoincrement())
+  orderId Int
+  name    String
+  price   Float
+  qty     Int
 
-  // ✅ ตรงนี้คือจุดเชื่อม (Relation) กลับไปหา Order
-  order    Order  @relation(fields: [orderId], references: [id])
+  order   Order @relation(fields: [orderId], references: [id])
 }
 
 model User {
@@ -42,4 +30,5 @@ model User {
   email    String @unique
   password String
   name     String?
+  role     String @default("USER") // ✅ สำคัญ
 }

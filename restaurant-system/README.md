@@ -37,3 +37,5 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 npx prisma generate
 npx prisma migrate dev
+เอาดู DB
+npx prisma studio
