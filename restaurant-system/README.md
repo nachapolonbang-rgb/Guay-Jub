@@ -39,3 +39,5 @@ npx prisma generate
 npx prisma migrate dev
 เอาดู DB
 npx prisma studio
+
+npm run dev -- -p 4000
