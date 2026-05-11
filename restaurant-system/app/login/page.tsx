@@ -7,11 +7,26 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
 
-  const isValid = email.includes('@') && password.length >= 6;
+  const trimmedEmail = email.trim();
+  const trimmedPassword = password.trim();
+  const isValid = trimmedEmail.includes('@') && trimmedPassword.length >= 6;
+
+  const resolveValidationError = () => {
+    if (!trimmedEmail) return 'กรุณากรอกอีเมล';
+    if (!trimmedEmail.includes('@')) return 'รูปแบบอีเมลไม่ถูกต้อง';
+    if (!trimmedPassword) return 'กรุณากรอกรหัสผ่าน';
+    if (trimmedPassword.length < 6) return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+    return '';
+  };
 
   const handleLogin = async () => {
-    if (!isValid) return;
+    const validationError = resolveValidationError();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     setError('');
     setLoading(true);
@@ -20,7 +35,7 @@ export default function LoginPage() {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword }),
       });
 
       const data = await res.json();
@@ -28,7 +43,13 @@ export default function LoginPage() {
       if (res.ok) {
         window.location.href = '/';
       } else {
-        setError(data.message || 'Login failed');
+        const nextAttempts = failedAttempts + 1;
+        setFailedAttempts(nextAttempts);
+        if (nextAttempts >= 2) {
+          setError('เข้าสู่ระบบไม่สำเร็จหลายครั้ง ลองเปลี่ยนรหัสผ่านดู');
+        } else {
+          setError(data.message || 'Login failed');
+        }
       }
     } catch {
       setError('Something went wrong');
@@ -36,6 +57,8 @@ export default function LoginPage() {
 
     setLoading(false);
   };
+
+  const validationError = resolveValidationError();
 
   return (
     <>
@@ -175,7 +198,9 @@ export default function LoginPage() {
             </div>
 
             <div className="animate-slide-up delay-400 text-right text-xs text-gray-400 mb-4">
-              Forgot password?
+              <a href="/forgot-password" className="font-medium text-[#e05f10] hover:text-[#c4490d] transition">
+                Forgot password?
+              </a>
             </div>
 
             {/* LOGIN BUTTON */}
@@ -206,6 +231,21 @@ export default function LoginPage() {
               <p className="animate-fade-in text-red-500 text-sm text-center mt-3">
                 {error}
               </p>
+            )}
+
+            {validationError && !error && (
+              <p className="animate-fade-in text-orange-500 text-sm text-center mt-3">
+                {validationError}
+              </p>
+            )}
+
+            {failedAttempts >= 2 && (
+              <div className="animate-fade-in text-center mt-4 text-sm text-[#3d200a]">
+                <p>ผิดรหัสผ่านเกิน 2 ครั้งแล้ว</p>
+                <a href="/forgot-password" className="font-bold text-orange-600 hover:text-orange-700">
+                  กดที่นี่เพื่อเปลี่ยนรหัสผ่าน
+                </a>
+              </div>
             )}
 
             {/* DIVIDER */}

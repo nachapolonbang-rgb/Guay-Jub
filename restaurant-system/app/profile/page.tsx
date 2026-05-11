@@ -10,6 +10,13 @@ export default function MemberPage() {
   const [mounted, setMounted] = useState(false);
   const [progWidth, setProgWidth] = useState(0);
 
+  // สำหรับเปลี่ยนรหัสผ่าน
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   useEffect(() => {
     setMounted(true);
     const timer = setTimeout(() => {
@@ -27,6 +34,54 @@ export default function MemberPage() {
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(''), 2200);
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      showToast('กรุณากรอกข้อมูลให้ครบถ้วน');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showToast('รหัสผ่านใหม่ไม่ตรงกัน');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      showToast('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      const response = await fetch('/api/change-password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showToast('เปลี่ยนรหัสผ่านสำเร็จ!');
+        setShowPasswordModal(false);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        showToast(data.message || 'เกิดข้อผิดพลาด');
+      }
+    } catch (error) {
+      showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const redeem = (cost: number, name: string) => {
@@ -260,15 +315,19 @@ export default function MemberPage() {
               ⚙️ ตั้งค่า
             </h3>
             <div className="space-y-0.5">
-              {['แก้ไขโปรไฟล์', 'เปลี่ยนรหัสผ่าน'].map(item => (
-                <div
-                  key={item}
-                  className="settings-row flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-[#3D1A00] hover:bg-[#FFF3EB] hover:text-[#E8530A] cursor-pointer"
-                >
-                  {item}
-                  <span className="text-xs opacity-30">›</span>
-                </div>
-              ))}
+              <div
+                className="settings-row flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-[#3D1A00] hover:bg-[#FFF3EB] hover:text-[#E8530A] cursor-pointer"
+              >
+                แก้ไขโปรไฟล์
+                <span className="text-xs opacity-30">›</span>
+              </div>
+              <div
+                onClick={() => setShowPasswordModal(true)}
+                className="settings-row flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-[#3D1A00] hover:bg-[#FFF3EB] hover:text-[#E8530A] cursor-pointer"
+              >
+                เปลี่ยนรหัสผ่าน
+                <span className="text-xs opacity-30">›</span>
+              </div>
               <div className="settings-row flex items-center px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 cursor-pointer">
                 ออกจากระบบ
               </div>
@@ -277,6 +336,73 @@ export default function MemberPage() {
 
         </div>
       </div>
+
+      {/* ── PASSWORD CHANGE MODAL ── */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-auto">
+            <h3 className="text-lg font-bold text-[#3D1A00] mb-4">เปลี่ยนรหัสผ่าน</h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[#7C3A10] mb-1">
+                  รหัสผ่านปัจจุบัน
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#F3DDD0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E8530A] focus:border-transparent"
+                  placeholder="กรอกรหัสผ่านปัจจุบัน"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#7C3A10] mb-1">
+                  รหัสผ่านใหม่
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#F3DDD0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E8530A] focus:border-transparent"
+                  placeholder="กรอกรหัสผ่านใหม่"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#7C3A10] mb-1">
+                  ยืนยันรหัสผ่านใหม่
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#F3DDD0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E8530A] focus:border-transparent"
+                  placeholder="กรอกรหัสผ่านใหม่อีกครั้ง"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="flex-1 px-4 py-2 text-[#7C3A10] border border-[#F3DDD0] rounded-xl hover:bg-[#FFF3EB] transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={isChangingPassword}
+                className="flex-1 px-4 py-2 bg-[#E8530A] text-white rounded-xl hover:bg-[#C8440A] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isChangingPassword ? 'กำลังเปลี่ยน...' : 'เปลี่ยนรหัสผ่าน'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

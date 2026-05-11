@@ -6,7 +6,10 @@ import { NextResponse } from 'next/server';
 const JWT_SECRET = 'your-secret-key-change-in-production';
 
 export async function POST(req: Request) {
-  const { email, password, name } = await req.json();
+  const body = await req.json();
+  const email = String(body.email || '').trim().toLowerCase();
+  const password = String(body.password || '').trim();
+  const name = String(body.name || '');
 
   // ✅ 1. check ว่าง
   if (!email || !password) {
