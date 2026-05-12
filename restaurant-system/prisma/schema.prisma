@@ -8,15 +8,22 @@ datasource db {
 }
 
 model Order {
-  id        Int      @id @default(autoincrement())
-  total     Float
-  status    String   @default("PENDING")
-  createdAt DateTime @default(now())
-  items     OrderItem[]
+  id          Int      @id @default(autoincrement())
+  total       Float
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  items       OrderItem[]
+
+  // ✅ เพิ่มใหม่
+  guestName   String?  // ชื่อลูกค้า (ไม่บังคับ)
+  guestPhone  String?  // เบอร์โทร (ไม่บังคับ)
+  orderType   String   @default("dine-in") // "dine-in" หรือ "takeaway"
+  userId      Int?     // ถ้าล็อกอินอยู่จะมีค่า ถ้า guest จะเป็น null
+  user        User?    @relation(fields: [userId], references: [id])
 }
 
 model OrderItem {
-  id      Int   @id @default(autoincrement())
+  id      Int    @id @default(autoincrement())
   orderId Int
   name    String
   price   Float
@@ -26,11 +33,12 @@ model OrderItem {
 }
 
 model User {
-  id       Int    @id @default(autoincrement())
-  email    String @unique
+  id       Int      @id @default(autoincrement())
+  email    String   @unique
   password String
   name     String?
-  role     String @default("USER") // ✅ สำคัญ
+  role     String   @default("USER")
+  orders   Order[]  // ✅ เพิ่ม relation กลับ
 }
 
 model MenuItem {

@@ -4,12 +4,17 @@ export async function createOrder(data: any) {
   try {
     const order = await prisma.order.create({
       data: {
-        total: data.total,
+        total:      data.total,
+        // ✅ เพิ่มใหม่
+        guestName:  data.guestName  ?? null,
+        guestPhone: data.guestPhone ?? null,
+        orderType:  data.orderType  ?? 'dine-in',
+        userId:     data.userId     ?? null,
         items: {
           create: data.items.map((item: any) => ({
-            name: item.name,
+            name:  item.name,
             price: item.price,
-            qty: item.qty,
+            qty:   item.qty,
           })),
         },
       },
@@ -25,12 +30,14 @@ export async function createOrder(data: any) {
   }
 }
 
+// ✅ getOrders — เพิ่ม user มาด้วยเผื่อ admin ดู
 export async function getOrders() {
   try {
     const orders = await prisma.order.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
         items: true,
+        user: { select: { id: true, name: true, email: true } },
       },
     })
     return orders
@@ -46,6 +53,7 @@ export async function getOrderById(id: number) {
       where: { id },
       include: {
         items: true,
+        user: { select: { id: true, name: true, email: true } },
       },
     })
     return order

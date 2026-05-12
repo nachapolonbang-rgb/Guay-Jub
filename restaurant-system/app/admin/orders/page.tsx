@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Plus, X, Check, ChevronDown, ChevronUp,
-  Clock, Search, Filter, Receipt,
+  Clock, Search, Receipt, User, Phone,
 } from 'lucide-react';
 
 // ---- Types ----
@@ -20,6 +20,8 @@ interface Order {
   items: OrderItem[];
   status: OrderStatus;
   note: string;
+  customerName: string;
+  customerPhone: string;
   createdAt: Date;
 }
 
@@ -27,39 +29,20 @@ interface Order {
 const STATUS_CYCLE: OrderStatus[] = ['new', 'cooking', 'ready', 'done'];
 
 const STATUS_META: Record<OrderStatus, { label: string; bg: string; text: string; dot: string }> = {
-  new:     { label: 'ใหม่',        bg: 'bg-blue-50',    text: 'text-blue-700',   dot: 'bg-blue-400' },
-  cooking: { label: 'กำลังปรุง',  bg: 'bg-amber-50',   text: 'text-amber-700',  dot: 'bg-amber-400' },
-  ready:   { label: 'พร้อมรับ',   bg: 'bg-emerald-50', text: 'text-emerald-700',dot: 'bg-emerald-500' },
-  done:    { label: 'รับแล้ว',    bg: 'bg-zinc-100',   text: 'text-zinc-500',   dot: 'bg-zinc-400' },
+  new:     { label: 'ใหม่',       bg: 'bg-blue-50',    text: 'text-blue-700',    dot: 'bg-blue-400' },
+  cooking: { label: 'กำลังปรุง', bg: 'bg-amber-50',   text: 'text-amber-700',   dot: 'bg-amber-400' },
+  ready:   { label: 'พร้อมรับ',  bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  done:    { label: 'รับแล้ว',   bg: 'bg-zinc-100',   text: 'text-zinc-500',    dot: 'bg-zinc-400' },
 };
 
 const MENU_OPTIONS = [
-  { label: 'ก๋วยจั๊บน้ำใส',           price: 50 },
-  { label: 'ก๋วยจั๊บน้ำข้น',           price: 60 },
-  { label: 'ก๋วยจั๊บพิเศษ',            price: 80 },
-  { label: 'ผักบุ้งไฟแดง',             price: 40 },
-  { label: 'คะน้าน้ำมันหอย',           price: 45 },
-  { label: 'น้ำเปล่า',                  price: 10 },
-  { label: 'น้ำอัดลม',                  price: 20 },
-];
-
-// ---- Seed data ----
-const seed = (id: number, items: OrderItem[], status: OrderStatus, note = '', minsAgo = 0): Order => ({
-  id,
-  items,
-  status,
-  note,
-  createdAt: new Date(Date.now() - minsAgo * 60000),
-});
-
-const INITIAL_ORDERS: Order[] = [
-  seed(42, [{ name: 'ก๋วยจั๊บน้ำใส', qty: 2, price: 50 }, { name: 'ผักบุ้งไฟแดง', qty: 1, price: 40 }], 'ready', '', 4),
-  seed(41, [{ name: 'ก๋วยจั๊บน้ำข้น', qty: 1, price: 60 }, { name: 'น้ำเปล่า', qty: 2, price: 10 }], 'cooking', 'ไม่ใส่ผักชี', 8),
-  seed(40, [{ name: 'ก๋วยจั๊บพิเศษ', qty: 2, price: 80 }], 'cooking', '', 11),
-  seed(39, [{ name: 'ก๋วยจั๊บน้ำใส', qty: 1, price: 50 }, { name: 'คะน้าน้ำมันหอย', qty: 1, price: 45 }], 'new', 'เผ็ดน้อย', 2),
-  seed(38, [{ name: 'ก๋วยจั๊บน้ำใส', qty: 3, price: 50 }], 'done', '', 25),
-  seed(37, [{ name: 'น้ำอัดลม', qty: 2, price: 20 }, { name: 'ผักบุ้งไฟแดง', qty: 1, price: 40 }], 'done', '', 40),
-  seed(36, [{ name: 'ก๋วยจั๊บน้ำข้น', qty: 2, price: 60 }, { name: 'ผักบุ้งไฟแดง', qty: 2, price: 40 }], 'done', '', 55),
+  { label: 'ก๋วยจั๊บน้ำใส',    price: 50 },
+  { label: 'ก๋วยจั๊บน้ำข้น',    price: 60 },
+  { label: 'ก๋วยจั๊บพิเศษ',     price: 80 },
+  { label: 'ผักบุ้งไฟแดง',      price: 40 },
+  { label: 'คะน้าน้ำมันหอย',    price: 45 },
+  { label: 'น้ำเปล่า',           price: 10 },
+  { label: 'น้ำอัดลม',           price: 20 },
 ];
 
 // ---- Helpers ----
@@ -74,11 +57,20 @@ function elapsed(d: Date) {
   return `${Math.floor(m / 60)} ชม. ที่แล้ว`;
 }
 
+// แปลง response จาก API (createdAt อาจเป็น string) ให้เป็น Order
+function parseOrder(raw: any): Order {
+  const status = raw.status as OrderStatus;
+  const validStatus: OrderStatus = STATUS_CYCLE.includes(status) ? status : 'new';
+  return {
+    ...raw,
+    status: validStatus,
+    createdAt: new Date(raw.createdAt),
+  };
+}
+
 // ---- Sub-components ----
-function StatusPill({
-  status, onClick,
-}: { status: OrderStatus; onClick?: () => void }) {
-  const m = STATUS_META[status];
+function StatusPill({ status, onClick }: { status: OrderStatus; onClick?: () => void }) {
+  const m = STATUS_META[status] || STATUS_META['new'];
   return (
     <button
       onClick={onClick}
@@ -100,10 +92,16 @@ function Toast({ msg, show }: { msg: string; show: boolean }) {
 }
 
 // ---- Order Card ----
-function OrderCard({
-  order, onCycle, onDelete,
-}: { order: Order; onCycle: () => void; onDelete: () => void }) {
+function OrderCard({ order, onCycle, onDelete }: { order: Order; onCycle: () => void; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [timeLabel, setTimeLabel] = useState('');
+
+  useEffect(() => {
+    setTimeLabel(elapsed(order.createdAt));
+    const timer = setInterval(() => setTimeLabel(elapsed(order.createdAt)), 30_000);
+    return () => clearInterval(timer);
+  }, [order.createdAt]);
+
   const t = total(order.items);
 
   return (
@@ -114,14 +112,31 @@ function OrderCard({
           #{String(order.id).padStart(3, '0')}
         </span>
 
-        {/* Items summary */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-zinc-700 truncate">
-            {order.items.map(i => `${i.name} ×${i.qty}`).join(', ')}
-          </p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <Clock size={11} className="text-zinc-300" />
-            <span className="text-xs text-zinc-400">{elapsed(order.createdAt)}</span>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="text-sm text-zinc-700 truncate flex-1">
+              {order.items.map(i => `${i.name} ×${i.qty}`).join(', ')}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* ชื่อลูกค้า */}
+            {order.customerName && (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-700 bg-blue-50 px-2 py-1 rounded-lg">
+                <User size={13} className="text-blue-400" />
+                {order.customerName}
+              </span>
+            )}
+            {/* เบอร์โทร */}
+            {order.customerPhone && (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-700 bg-emerald-50 px-2 py-1 rounded-lg">
+                <Phone size={13} className="text-emerald-400" />
+                {order.customerPhone}
+              </span>
+            )}
+            <span className="flex items-center gap-1 text-xs text-zinc-400">
+              <Clock size={11} className="text-zinc-300" />
+              {timeLabel}
+            </span>
             {order.note && (
               <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">
                 {order.note}
@@ -130,13 +145,8 @@ function OrderCard({
           </div>
         </div>
 
-        {/* Price */}
         <span className="text-sm font-semibold text-zinc-900 shrink-0">฿{t}</span>
-
-        {/* Status pill */}
         <StatusPill status={order.status} onClick={onCycle} />
-
-        {/* Expand */}
         <button
           onClick={() => setExpanded(v => !v)}
           className="p-1.5 rounded-lg hover:bg-zinc-50 text-zinc-400 transition-colors shrink-0"
@@ -148,6 +158,25 @@ function OrderCard({
       {/* Expanded detail */}
       {expanded && (
         <div className="border-t border-zinc-50 px-4 pb-4 pt-3 bg-zinc-50/50">
+          {/* ข้อมูลลูกค้า */}
+          {(order.customerName || order.customerPhone) && (
+            <div className="flex items-center gap-4 mb-3 pb-3 border-b border-zinc-100">
+              {order.customerName && (
+                <span className="flex items-center gap-1.5 text-sm text-zinc-600">
+                  <User size={13} className="text-zinc-400" />
+                  {order.customerName}
+                </span>
+              )}
+              {order.customerPhone && (
+                <span className="flex items-center gap-1.5 text-sm text-zinc-600">
+                  <Phone size={13} className="text-zinc-400" />
+                  {order.customerPhone}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* รายการอาหาร */}
           <div className="space-y-1.5 mb-3">
             {order.items.map((item, i) => (
               <div key={i} className="flex justify-between text-sm">
@@ -167,7 +196,7 @@ function OrderCard({
               {STATUS_CYCLE.map((s, i) => {
                 const idx = STATUS_CYCLE.indexOf(order.status);
                 const isPast = i <= idx;
-                const m = STATUS_META[s];
+                const m = STATUS_META[s] || STATUS_META['new'];
                 return (
                   <div key={s} className="flex items-center gap-1">
                     <div className={`w-2 h-2 rounded-full transition-colors ${isPast ? m.dot : 'bg-zinc-200'}`} />
@@ -177,7 +206,7 @@ function OrderCard({
                   </div>
                 );
               })}
-              <span className="ml-2 text-xs text-zinc-400">{STATUS_META[order.status].label}</span>
+              <span className="ml-2 text-xs text-zinc-400">{(STATUS_META[order.status] || STATUS_META['new']).label}</span>
             </div>
 
             <div className="flex gap-2">
@@ -207,10 +236,17 @@ function OrderCard({
 interface FormLine { menuIdx: number; qty: number }
 
 function AddOrderModal({
-  onClose, onConfirm,
-}: { onClose: () => void; onConfirm: (lines: FormLine[], note: string) => void }) {
+  onClose,
+  onConfirm,
+}: {
+  onClose: () => void;
+  onConfirm: (lines: FormLine[], note: string, customerName: string, customerPhone: string) => Promise<void>;
+}) {
   const [lines, setLines] = useState<FormLine[]>([{ menuIdx: 0, qty: 1 }]);
   const [note, setNote] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [loading, setLoading] = useState(false);
 
   function addLine() { setLines(l => [...l, { menuIdx: 0, qty: 1 }]); }
   function removeLine(i: number) { setLines(l => l.filter((_, idx) => idx !== i)); }
@@ -219,9 +255,15 @@ function AddOrderModal({
 
   const preview = lines.reduce((s, l) => s + MENU_OPTIONS[l.menuIdx].price * l.qty, 0);
 
+  async function handleConfirm() {
+    setLoading(true);
+    await onConfirm(lines, note, customerName, customerPhone);
+    setLoading(false);
+  }
+
   return (
     <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/30">
-      <div className="bg-white rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-2xl">
+      <div className="bg-white rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold text-zinc-900">ออร์เดอร์ใหม่</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400">
@@ -229,7 +271,34 @@ function AddOrderModal({
           </button>
         </div>
 
-        <div className="space-y-2 mb-4">
+        {/* ข้อมูลลูกค้า */}
+        <p className="text-xs font-medium text-zinc-400 mb-2">ข้อมูลลูกค้า</p>
+        <div className="flex gap-2 mb-4">
+          <div className="relative flex-1">
+            <User size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="ชื่อลูกค้า"
+              value={customerName}
+              onChange={e => setCustomerName(e.target.value)}
+              className="w-full pl-8 pr-3 py-2.5 text-sm border border-zinc-200 rounded-xl bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            />
+          </div>
+          <div className="relative flex-1">
+            <Phone size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="tel"
+              placeholder="เบอร์โทร"
+              value={customerPhone}
+              onChange={e => setCustomerPhone(e.target.value)}
+              className="w-full pl-8 pr-3 py-2.5 text-sm border border-zinc-200 rounded-xl bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            />
+          </div>
+        </div>
+
+        {/* รายการอาหาร */}
+        <p className="text-xs font-medium text-zinc-400 mb-2">รายการอาหาร</p>
+        <div className="space-y-2 mb-2">
           {lines.map((line, i) => (
             <div key={i} className="flex items-center gap-2">
               <select
@@ -283,10 +352,11 @@ function AddOrderModal({
             ยกเลิก
           </button>
           <button
-            onClick={() => onConfirm(lines, note)}
-            className="flex-1 py-2.5 text-sm rounded-xl bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors"
+            onClick={handleConfirm}
+            disabled={loading}
+            className="flex-1 py-2.5 text-sm rounded-xl bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            ยืนยันออร์เดอร์
+            {loading ? 'กำลังบันทึก...' : 'ยืนยันออร์เดอร์'}
           </button>
         </div>
       </div>
@@ -296,55 +366,102 @@ function AddOrderModal({
 
 // ---- Main Page ----
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<OrderStatus | 'ทั้งหมด'>('ทั้งหมด');
   const [showModal, setShowModal] = useState(false);
   const [toast, setToast] = useState({ show: false, msg: '' });
-  const [nextId, setNextId] = useState(43);
 
   function showToast(msg: string) {
     setToast({ show: true, msg });
     setTimeout(() => setToast(t => ({ ...t, show: false })), 2400);
   }
 
+  // ---- Fetch orders จาก API ----
+  const fetchOrders = useCallback(async () => {
+    try {
+      const res = await fetch('/api/orders');
+      if (!res.ok) throw new Error('fetch failed');
+      const data = await res.json();
+      setOrders(data.map(parseOrder));
+    } catch {
+      showToast('โหลดออร์เดอร์ไม่สำเร็จ');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  // ---- Cycle status (optimistic update) ----
   function cycleStatus(id: number) {
     setOrders(prev => prev.map(o => {
       if (o.id !== id) return o;
       const idx = STATUS_CYCLE.indexOf(o.status);
-      const next = STATUS_CYCLE[Math.min(idx + 1, STATUS_CYCLE.length - 1)];
-      if (next !== o.status) showToast(`#${String(o.id).padStart(3, '0')} → ${STATUS_META[next].label}`);
+      if (idx >= STATUS_CYCLE.length - 1) return o;
+      const next = STATUS_CYCLE[idx + 1];
+      showToast(`#${String(o.id).padStart(3, '0')} → ${STATUS_META[next].label}`);
       return { ...o, status: next };
     }));
+    // TODO: เพิ่ม PATCH /api/orders/[id] เมื่อ backend รองรับ
   }
 
+  // ---- Delete order (optimistic update) ----
   function deleteOrder(id: number) {
     setOrders(prev => {
       const o = prev.find(x => x.id === id);
       if (o) showToast(`ลบออร์เดอร์ #${String(o.id).padStart(3, '0')} แล้ว`);
       return prev.filter(x => x.id !== id);
     });
+    // TODO: เพิ่ม DELETE /api/orders/[id] เมื่อ backend รองรับ
   }
 
-  function addOrder(lines: FormLine[], note: string) {
+  // ---- Create order ----
+  async function addOrder(
+    lines: FormLine[],
+    note: string,
+    customerName: string,
+    customerPhone: string,
+  ) {
     const items: OrderItem[] = lines.map(l => ({
       name: MENU_OPTIONS[l.menuIdx].label,
       qty: l.qty,
       price: MENU_OPTIONS[l.menuIdx].price,
     }));
-    const newOrder: Order = { id: nextId, items, status: 'new', note, createdAt: new Date() };
-    setOrders(prev => [newOrder, ...prev]);
-    setNextId(n => n + 1);
-    setShowModal(false);
-    showToast(`เพิ่มออร์เดอร์ #${String(nextId).padStart(3, '0')} แล้ว`);
+
+    const body = { items, note, customerName, customerPhone };
+
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) throw new Error('create failed');
+
+      const created = parseOrder(await res.json());
+      setOrders(prev => [created, ...prev]);
+      setShowModal(false);
+      showToast(`เพิ่มออร์เดอร์ #${String(created.id).padStart(3, '0')} แล้ว`);
+    } catch {
+      showToast('บันทึกออร์เดอร์ไม่สำเร็จ');
+    }
   }
 
   // ---- Filtered ----
   const filtered = useMemo(() => orders.filter(o => {
     const matchStatus = filterStatus === 'ทั้งหมด' || o.status === filterStatus;
-    const matchSearch = String(o.id).includes(search) ||
-      o.items.some(i => i.name.includes(search)) ||
-      o.note.includes(search);
+    const q = search.toLowerCase();
+    const matchSearch = !q ||
+      String(o.id).includes(q) ||
+      o.items.some(i => i.name.includes(q)) ||
+      o.note.toLowerCase().includes(q) ||
+      o.customerName.toLowerCase().includes(q) ||
+      o.customerPhone.includes(q);
     return matchStatus && matchSearch;
   }), [orders, filterStatus, search]);
 
@@ -381,10 +498,10 @@ export default function OrdersPage() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
         {[
           { label: 'รายได้วันนี้', value: `฿${stats.revenue.toLocaleString()}`, highlight: true },
-          { label: 'ออร์เดอร์ใหม่', value: stats.new, dot: STATUS_META.new.dot },
-          { label: 'กำลังปรุง', value: stats.cooking, dot: STATUS_META.cooking.dot },
-          { label: 'พร้อมรับ', value: stats.ready, dot: STATUS_META.ready.dot },
-          { label: 'รับแล้ว', value: stats.done, dot: STATUS_META.done.dot },
+          { label: 'ออร์เดอร์ใหม่', value: stats.new,     dot: STATUS_META.new.dot },
+          { label: 'กำลังปรุง',    value: stats.cooking,  dot: STATUS_META.cooking.dot },
+          { label: 'พร้อมรับ',     value: stats.ready,    dot: STATUS_META.ready.dot },
+          { label: 'รับแล้ว',      value: stats.done,     dot: STATUS_META.done.dot },
         ].map(s => (
           <div key={s.label} className={`rounded-2xl p-4 border ${s.highlight ? 'bg-emerald-500 border-emerald-400' : 'bg-white border-zinc-100'}`}>
             <div className="flex items-center gap-1.5 mb-1">
@@ -402,7 +519,7 @@ export default function OrdersPage() {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
           <input
             type="text"
-            placeholder="ค้นหาออร์เดอร์ หรือเมนู..."
+            placeholder="ค้นหาออร์เดอร์ ชื่อลูกค้า เบอร์ หรือเมนู..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400"
@@ -410,7 +527,7 @@ export default function OrdersPage() {
         </div>
         <div className="flex gap-2 flex-wrap">
           {(['ทั้งหมด', ...STATUS_CYCLE] as const).map(s => {
-            const meta = s !== 'ทั้งหมด' ? STATUS_META[s] : null;
+            const meta = s !== 'ทั้งหมด' ? STATUS_META[s] || STATUS_META['new'] : null;
             return (
               <button
                 key={s}
@@ -433,7 +550,12 @@ export default function OrdersPage() {
       </div>
 
       {/* Orders list */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="bg-white rounded-2xl border border-zinc-100 py-20 flex flex-col items-center gap-3 text-zinc-400">
+          <div className="w-6 h-6 border-2 border-zinc-200 border-t-emerald-500 rounded-full animate-spin" />
+          <p className="text-sm">กำลังโหลด...</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-zinc-100 py-20 flex flex-col items-center gap-3 text-zinc-400">
           <Receipt size={28} className="text-zinc-200" />
           <p className="text-sm">ไม่พบออร์เดอร์</p>
