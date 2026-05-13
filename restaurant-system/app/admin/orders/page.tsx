@@ -8,6 +8,7 @@ import {
 
 // ---- Types ----
 type OrderStatus = 'new' | 'cooking' | 'ready' | 'done';
+type PaymentStatus = 'pending' | 'paid' | 'cancelled';
 
 interface OrderItem {
   name: string;
@@ -19,6 +20,8 @@ interface Order {
   id: number;
   items: OrderItem[];
   status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  paymentMethod?: string;
   note: string;
   customerName: string;
   customerPhone: string;
@@ -33,6 +36,12 @@ const STATUS_META: Record<OrderStatus, { label: string; bg: string; text: string
   cooking: { label: 'กำลังปรุง', bg: 'bg-amber-50',   text: 'text-amber-700',   dot: 'bg-amber-400' },
   ready:   { label: 'พร้อมรับ',  bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
   done:    { label: 'รับแล้ว',   bg: 'bg-zinc-100',   text: 'text-zinc-500',    dot: 'bg-zinc-400' },
+};
+
+const PAYMENT_META: Record<PaymentStatus, { label: string; bg: string; text: string; dot: string }> = {
+  pending:   { label: 'รอชำระเงิน', bg: 'bg-amber-50',    text: 'text-amber-700',    dot: 'bg-amber-400' },
+  paid:      { label: 'ชำระแล้ว',  bg: 'bg-emerald-50',  text: 'text-emerald-700',  dot: 'bg-emerald-500' },
+  cancelled: { label: 'ยกเลิก',    bg: 'bg-red-50',      text: 'text-red-700',      dot: 'bg-red-400' },
 };
 
 const MENU_OPTIONS = [
@@ -57,14 +66,29 @@ function elapsed(d: Date) {
   return `${Math.floor(m / 60)} ชม. ที่แล้ว`;
 }
 
-// แปลง response จาก API (createdAt อาจเป็น string) ให้เป็น Order
 function parseOrder(raw: any): Order {
-  const status = raw.status as OrderStatus;
+  const status = raw.status?.toLowerCase() as OrderStatus;
   const validStatus: OrderStatus = STATUS_CYCLE.includes(status) ? status : 'new';
+
+  const paymentStatus = (raw.paymentStatus?.toLowerCase() ?? 'pending') as PaymentStatus;
+  const validPaymentStatus = ['pending', 'paid', 'cancelled'].includes(paymentStatus) ? paymentStatus : 'pending';
+
+  const items: OrderItem[] = (raw.items ?? []).map((item: any) => ({
+    name:  item.name,
+    qty:   item.qty,
+    price: item.price,
+  }));
+
   return {
-    ...raw,
-    status: validStatus,
-    createdAt: new Date(raw.createdAt),
+    id:            raw.id,
+    items,
+    status:        validStatus,
+    paymentStatus: validPaymentStatus as PaymentStatus,
+    paymentMethod: raw.paymentMethod,
+    note:          raw.note ?? '',
+    customerName:  raw.guestName  ?? raw.customerName  ?? '',
+    customerPhone: raw.guestPhone ?? raw.customerPhone ?? '',
+    createdAt:     new Date(raw.createdAt),
   };
 }
 
@@ -88,6 +112,16 @@ function Toast({ msg, show }: { msg: string; show: boolean }) {
       <Check size={14} className="text-emerald-400" />
       {msg}
     </div>
+  );
+}
+
+function PaymentPill({ paymentStatus }: { paymentStatus: PaymentStatus }) {
+  const m = PAYMENT_META[paymentStatus] || PAYMENT_META['pending'];
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${m.bg} ${m.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
+      {m.label}
+    </span>
   );
 }
 
@@ -119,20 +153,19 @@ function OrderCard({ order, onCycle, onDelete }: { order: Order; onCycle: () => 
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* ชื่อลูกค้า */}
             {order.customerName && (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-700 bg-blue-50 px-2 py-1 rounded-lg">
-                <User size={13} className="text-blue-400" />
+              <span className="flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded-lg">
+                <User size={11} className="text-blue-400" />
                 {order.customerName}
               </span>
             )}
-            {/* เบอร์โทร */}
             {order.customerPhone && (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-700 bg-emerald-50 px-2 py-1 rounded-lg">
-                <Phone size={13} className="text-emerald-400" />
+              <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg">
+                <Phone size={11} className="text-emerald-400" />
                 {order.customerPhone}
               </span>
             )}
+            <PaymentPill paymentStatus={order.paymentStatus} />
             <span className="flex items-center gap-1 text-xs text-zinc-400">
               <Clock size={11} className="text-zinc-300" />
               {timeLabel}
@@ -158,25 +191,28 @@ function OrderCard({ order, onCycle, onDelete }: { order: Order; onCycle: () => 
       {/* Expanded detail */}
       {expanded && (
         <div className="border-t border-zinc-50 px-4 pb-4 pt-3 bg-zinc-50/50">
-          {/* ข้อมูลลูกค้า */}
-          {(order.customerName || order.customerPhone) && (
-            <div className="flex items-center gap-4 mb-3 pb-3 border-b border-zinc-100">
-              {order.customerName && (
-                <span className="flex items-center gap-1.5 text-sm text-zinc-600">
-                  <User size={13} className="text-zinc-400" />
-                  {order.customerName}
-                </span>
-              )}
-              {order.customerPhone && (
-                <span className="flex items-center gap-1.5 text-sm text-zinc-600">
-                  <Phone size={13} className="text-zinc-400" />
-                  {order.customerPhone}
-                </span>
-              )}
+          <div className="mb-3 pb-3 border-b border-zinc-100">
+            {(order.customerName || order.customerPhone) && (
+              <div className="flex items-center gap-4 mb-2">
+                {order.customerName && (
+                  <span className="flex items-center gap-1.5 text-sm text-zinc-600">
+                    <User size={13} className="text-zinc-400" />
+                    {order.customerName}
+                  </span>
+                )}
+                {order.customerPhone && (
+                  <span className="flex items-center gap-1.5 text-sm text-zinc-600">
+                    <Phone size={13} className="text-zinc-400" />
+                    {order.customerPhone}
+                  </span>
+                )}
+              </div>
+            )}
+            <div>
+              <PaymentPill paymentStatus={order.paymentStatus} />
             </div>
-          )}
+          </div>
 
-          {/* รายการอาหาร */}
           <div className="space-y-1.5 mb-3">
             {order.items.map((item, i) => (
               <div key={i} className="flex justify-between text-sm">
@@ -191,7 +227,6 @@ function OrderCard({ order, onCycle, onDelete }: { order: Order; onCycle: () => 
           </div>
 
           <div className="flex items-center gap-2 justify-between">
-            {/* Status stepper */}
             <div className="flex items-center gap-1">
               {STATUS_CYCLE.map((s, i) => {
                 const idx = STATUS_CYCLE.indexOf(order.status);
@@ -271,7 +306,6 @@ function AddOrderModal({
           </button>
         </div>
 
-        {/* ข้อมูลลูกค้า */}
         <p className="text-xs font-medium text-zinc-400 mb-2">ข้อมูลลูกค้า</p>
         <div className="flex gap-2 mb-4">
           <div className="relative flex-1">
@@ -296,7 +330,6 @@ function AddOrderModal({
           </div>
         </div>
 
-        {/* รายการอาหาร */}
         <p className="text-xs font-medium text-zinc-400 mb-2">รายการอาหาร</p>
         <div className="space-y-2 mb-2">
           {lines.map((line, i) => (
@@ -378,7 +411,6 @@ export default function OrdersPage() {
     setTimeout(() => setToast(t => ({ ...t, show: false })), 2400);
   }
 
-  // ---- Fetch orders จาก API ----
   const fetchOrders = useCallback(async () => {
     try {
       const res = await fetch('/api/orders');
@@ -396,30 +428,53 @@ export default function OrdersPage() {
     fetchOrders();
   }, [fetchOrders]);
 
-  // ---- Cycle status (optimistic update) ----
-  function cycleStatus(id: number) {
-    setOrders(prev => prev.map(o => {
-      if (o.id !== id) return o;
-      const idx = STATUS_CYCLE.indexOf(o.status);
-      if (idx >= STATUS_CYCLE.length - 1) return o;
-      const next = STATUS_CYCLE[idx + 1];
-      showToast(`#${String(o.id).padStart(3, '0')} → ${STATUS_META[next].label}`);
-      return { ...o, status: next };
-    }));
-    // TODO: เพิ่ม PATCH /api/orders/[id] เมื่อ backend รองรับ
+  async function cycleStatus(id: number) {
+    const currentOrder = orders.find(o => o.id === id);
+    if (!currentOrder) return;
+
+    const idx = STATUS_CYCLE.indexOf(currentOrder.status);
+    if (idx >= STATUS_CYCLE.length - 1) return;
+
+    const next = STATUS_CYCLE[idx + 1];
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: next } : o));
+
+    try {
+      const res = await fetch(`/api/orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: next }),
+      });
+
+      if (!res.ok) throw new Error('update failed');
+
+      const updated = parseOrder(await res.json());
+      setOrders(prev => prev.map(o => o.id === id ? updated : o));
+      showToast(`#${String(id).padStart(3, '0')} → ${STATUS_META[next].label}`);
+    } catch {
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: currentOrder.status } : o));
+      showToast('เปลี่ยนสถานะไม่สำเร็จ');
+    }
   }
 
-  // ---- Delete order (optimistic update) ----
-  function deleteOrder(id: number) {
-    setOrders(prev => {
-      const o = prev.find(x => x.id === id);
-      if (o) showToast(`ลบออร์เดอร์ #${String(o.id).padStart(3, '0')} แล้ว`);
-      return prev.filter(x => x.id !== id);
-    });
-    // TODO: เพิ่ม DELETE /api/orders/[id] เมื่อ backend รองรับ
+  // ✅ แก้แล้ว — call DELETE API ก่อน แล้วค่อยลบออกจาก state
+  async function deleteOrder(id: number) {
+    const confirmed = window.confirm('แน่ใจหรือไม่ว่าต้องการลบออร์เดอร์นี้? ข้อมูลจะไม่สามารถกู้คืนได้');
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('delete failed');
+
+      setOrders(prev => {
+        const o = prev.find(x => x.id === id);
+        if (o) showToast(`ลบออร์เดอร์ #${String(o.id).padStart(3, '0')} แล้ว`);
+        return prev.filter(x => x.id !== id);
+      });
+    } catch {
+      showToast('ลบออร์เดอร์ไม่สำเร็จ');
+    }
   }
 
-  // ---- Create order ----
   async function addOrder(
     lines: FormLine[],
     note: string,
@@ -427,18 +482,22 @@ export default function OrdersPage() {
     customerPhone: string,
   ) {
     const items: OrderItem[] = lines.map(l => ({
-      name: MENU_OPTIONS[l.menuIdx].label,
-      qty: l.qty,
+      name:  MENU_OPTIONS[l.menuIdx].label,
+      qty:   l.qty,
       price: MENU_OPTIONS[l.menuIdx].price,
     }));
-
-    const body = { items, note, customerName, customerPhone };
 
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          items,
+          note,
+          guestName:  customerName,
+          guestPhone: customerPhone,
+          orderType: 'dine-in',
+        }),
       });
 
       if (!res.ok) throw new Error('create failed');
@@ -452,7 +511,6 @@ export default function OrdersPage() {
     }
   }
 
-  // ---- Filtered ----
   const filtered = useMemo(() => orders.filter(o => {
     const matchStatus = filterStatus === 'ทั้งหมด' || o.status === filterStatus;
     const q = search.toLowerCase();
@@ -465,13 +523,12 @@ export default function OrdersPage() {
     return matchStatus && matchSearch;
   }), [orders, filterStatus, search]);
 
-  // ---- Stats ----
   const stats = useMemo(() => ({
-    total: orders.length,
-    new: orders.filter(o => o.status === 'new').length,
+    total:   orders.length,
+    new:     orders.filter(o => o.status === 'new').length,
     cooking: orders.filter(o => o.status === 'cooking').length,
-    ready: orders.filter(o => o.status === 'ready').length,
-    done: orders.filter(o => o.status === 'done').length,
+    ready:   orders.filter(o => o.status === 'ready').length,
+    done:    orders.filter(o => o.status === 'done').length,
     revenue: orders.filter(o => o.status === 'done').reduce((s, o) => s + total(o.items), 0),
   }), [orders]);
 
@@ -573,7 +630,6 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {/* Add Modal */}
       {showModal && (
         <AddOrderModal
           onClose={() => setShowModal(false)}

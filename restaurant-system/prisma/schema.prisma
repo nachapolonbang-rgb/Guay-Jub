@@ -10,15 +10,16 @@ datasource db {
 model Order {
   id          Int      @id @default(autoincrement())
   total       Float
-  status      String   @default("PENDING")
+  status      String   @default("new")
+  paymentStatus String @default("pending") // 'pending' | 'paid' | 'cancelled'
+  paymentMethod String? // 'cash' | 'qr'
   createdAt   DateTime @default(now())
   items       OrderItem[]
 
-  // ✅ เพิ่มใหม่
-  guestName   String?  // ชื่อลูกค้า (ไม่บังคับ)
-  guestPhone  String?  // เบอร์โทร (ไม่บังคับ)
-  orderType   String   @default("dine-in") // "dine-in" หรือ "takeaway"
-  userId      Int?     // ถ้าล็อกอินอยู่จะมีค่า ถ้า guest จะเป็น null
+  guestName   String?
+  guestPhone  String?
+  orderType   String   @default("dine-in")
+  userId      Int?
   user        User?    @relation(fields: [userId], references: [id])
 }
 
@@ -29,7 +30,7 @@ model OrderItem {
   price   Float
   qty     Int
 
-  order   Order @relation(fields: [orderId], references: [id])
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model User {

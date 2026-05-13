@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import Navbar from '@/src/backend/components/Navbar';
 
 const MENU_ITEMS = [
@@ -89,7 +90,7 @@ export default function Home() {
             </p>
             <div className="flex gap-5">
               <button className="bg-[#e3523d] text-white px-10 py-4 rounded-full font-bold shadow-lg hover:bg-[#c94432] transition-all transform hover:scale-105">Order Now</button>
-              <button className="bg-white text-[#3d200a] px-10 py-4 rounded-full font-bold border border-orange-100 hover:bg-orange-50 transition-all">View Menu</button>
+              <Link href="/menu" className="bg-white text-[#3d200a] px-10 py-4 rounded-full font-bold border border-orange-100 hover:bg-orange-50 transition-all">ดูเมนู</Link>
             </div>
           </div>
         </div>
@@ -98,7 +99,7 @@ export default function Home() {
       {/* Menu Section */}
       <section className="px-10 py-24 bg-white relative z-10">
         <div className="max-w-6xl mx-auto text-center mb-16">
-          <h2 className="text-4xl font-black text-[#3d200a] mb-4">menu</h2>
+          <h2 className="text-4xl font-black text-[#3d200a] mb-4">เมนู</h2>
           <div className="h-1.5 w-16 bg-[#e3523d] mx-auto rounded-full" />
         </div>
         

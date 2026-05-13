@@ -1,12 +1,11 @@
 import { z } from 'zod'
 
 export const createOrderSchema = z.object({
-  guestName:      z.string().optional(),
-  guestPhone:     z.string().optional(),
-  orderType:      z.enum(['dine-in', 'takeaway']).default('dine-in'),
-  userId:         z.number().optional(),
-  paymentMethod:  z.enum(['cash', 'qr']).optional(),
-  paymentStatus:  z.enum(['pending', 'paid', 'cancelled']).default('pending'),
+  // ✅ Guest fields
+  guestName:  z.string().min(1, "กรุณาใส่ชื่อ").optional(),
+  guestPhone: z.string().min(9, "เบอร์โทรไม่ถูกต้อง").optional(),
+  orderType:  z.enum(['dine-in', 'takeaway']).default('dine-in'),
+  userId:     z.number().optional(),
 
   items: z.array(
     z.object({

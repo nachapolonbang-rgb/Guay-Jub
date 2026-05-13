@@ -1,0 +1,7 @@
+-- CreateTable
+CREATE TABLE "ShopStatus" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT DEFAULT 1,
+    "isOpen" BOOLEAN NOT NULL DEFAULT false,
+    "openedAt" DATETIME,
+    "updatedAt" DATETIME NOT NULL
+);

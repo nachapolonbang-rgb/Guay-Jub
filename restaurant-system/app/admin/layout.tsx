@@ -18,7 +18,7 @@ import {
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/admin' },
   { label: 'Orders', icon: ClipboardList, href: '/admin/orders' },
-  { label: 'Menu', icon: UtensilsCrossed, href: '/admin/menu' },
+  { label: 'จัดการเมนู', icon: UtensilsCrossed, href: '/admin/menu' },
   { label: 'Inventory', icon: Package, href: '/admin/inventory' },
   { label: 'Promotions', icon: Gift, href: '/admin/promotions' },
   { label: 'Reports', icon: BarChart3, href: '/admin/reports' },
