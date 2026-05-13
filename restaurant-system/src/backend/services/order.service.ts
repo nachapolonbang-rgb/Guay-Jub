@@ -5,6 +5,7 @@ import {
   updateOrderStatus as updateOrderStatusRepo,
   updateOrderPaymentStatus as updateOrderPaymentStatusRepo,
   deleteOrder as deleteOrderRepo,
+  getOrdersByPhone as getOrdersByPhoneRepo,
 } from '../repositories/order.repo'
 
 export async function createOrder(data: any) {
@@ -53,4 +54,8 @@ export async function updateOrderPaymentStatus(id: number, paymentStatus: string
 
 export async function deleteOrder(id: number) {
   return deleteOrderRepo(id)
+}
+
+export async function getOrdersByPhone(phone: string) {
+  return getOrdersByPhoneRepo(phone)
 }

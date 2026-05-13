@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/src/backend/components/Navbar';
+import { useCart } from '@/src/backend/context/CartContext';
 
 type CartItem = { id: number; name: string; price: number; image: string; qty: number };
 type PayMethod = 'cash' | 'qr';
@@ -25,6 +26,7 @@ export default function CheckoutPage() {
   const [fieldError, setFieldError] = useState('');
   const [done, setDone] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
+  const { clearCart } = useCart();
 
   // ดึงข้อมูลจาก localStorage ที่ cart เซฟไว้
   useEffect(() => {
@@ -86,12 +88,14 @@ export default function CheckoutPage() {
 
       const created = await res.json();
 
-      // ล้าง localStorage
+      // ล้างข้อมูลทั้ง localStorage และ cart context
       localStorage.removeItem('cart');
       localStorage.removeItem('guestName');
       localStorage.removeItem('guestPhone');
       localStorage.removeItem('orderType');
       localStorage.removeItem('discount');
+      clearCart();
+      setCart([]);
 
       setOrderId(created.id);
       setDone(true);

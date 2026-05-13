@@ -113,3 +113,15 @@ export async function deleteOrder(id: number) {
     throw error
   }
 }
+
+export async function getOrdersByPhone(phone: string) {
+  return prisma.order.findMany({
+    where: {
+      guestPhone: { contains: phone },
+    },
+    include: {
+      items: true,   // ← ปรับตาม schema จริง
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+}
