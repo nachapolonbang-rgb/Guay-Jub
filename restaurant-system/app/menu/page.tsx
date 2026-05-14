@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Navbar from '@/src/backend/components/Navbar';
 import { useCart } from '@/src/backend/context/CartContext';
+import { useShop } from '@/src/backend/context/ShopContext';
 
 type MenuItem = {
   id: number;
@@ -30,7 +31,6 @@ const CATEGORY_META: Record<string, { label: string; icon: string }> = {
 function normalizeMenuItem(item: unknown): MenuItem {
   const raw = item as Record<string, unknown>;
   const category = String(raw.category ?? 'อื่นๆ');
-
   return {
     id: Number(raw.id ?? 0),
     name: String(raw.name ?? ''),
@@ -50,8 +50,24 @@ function Toast({ show, msg }: { show: boolean; msg: string }) {
   );
 }
 
+function ShopClosedBanner() {
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6">
+      <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-sm w-full text-center">
+        <div className="text-5xl mb-4">🔒</div>
+        <h2 className="text-xl font-bold text-zinc-900 mb-2">ร้านปิดอยู่</h2>
+        <p className="text-sm text-zinc-500 leading-relaxed">
+          ขณะนี้ร้านยังไม่เปิดรับออเดอร์<br />
+          กรุณากลับมาใหม่ในภายหลัง
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function MenuPage() {
   const { cart, addToCart } = useCart();
+  const { isOpen } = useShop();
 
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,15 +116,24 @@ export default function MenuPage() {
   return (
     <div className="min-h-screen bg-[#FFF6EE]">
 
+      {!isOpen && <ShopClosedBanner />}
+
       <Navbar />
+
+      {!isOpen && (
+        <div className="bg-red-500 text-white text-center text-xs font-semibold py-2 tracking-wide">
+          🔒 ร้านปิดรับออเดอร์ชั่วคราว — กรุณาติดต่อเจ้าหน้าที่
+        </div>
+      )}
 
       <div className="max-w-6xl mx-auto px-6 py-10">
 
         <input
           type="text"
           placeholder="🔍 ค้นหาเมนู..."
-          className="w-full p-4 rounded-full border-2 border-orange-200 mb-8 text-black"
+          className="w-full p-4 rounded-full border-2 border-orange-200 mb-8 text-black disabled:opacity-40"
           onChange={(e) => setSearch(e.target.value)}
+          disabled={!isOpen}
         />
 
         <div className="flex gap-3 mb-10 flex-wrap">
@@ -116,11 +141,10 @@ export default function MenuPage() {
             <button
               key={cat.key}
               onClick={() => setActiveCat(cat.key)}
-              className={`px-4 py-2 rounded-full ${
-                activeCat === cat.key
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-white'
-              }`}
+              disabled={!isOpen}
+              className={`px-4 py-2 rounded-full transition-opacity ${
+                activeCat === cat.key ? 'bg-orange-500 text-white' : 'bg-white'
+              } ${!isOpen ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               {cat.icon} {cat.label}
             </button>
@@ -136,8 +160,10 @@ export default function MenuPage() {
             {filtered.map(item => {
               const added = addedItemIds.includes(item.id);
               return (
-                <div key={item.id} className="bg-white rounded-2xl shadow p-4">
-
+                <div
+                  key={item.id}
+                  className={`bg-white rounded-2xl shadow p-4 transition-opacity ${!isOpen ? 'opacity-50' : ''}`}
+                >
                   <div className="relative w-full h-40 overflow-hidden rounded-xl">
                     <Image src={item.image} alt={item.name} fill className="object-cover" />
                   </div>
@@ -148,17 +174,24 @@ export default function MenuPage() {
                     <span className="text-orange-500 font-bold">฿{item.price}</span>
 
                     <button
+                      disabled={!isOpen}
                       onClick={() => {
+                        if (!isOpen) return;
                         addToCart(item);
                         markAdded(item.id);
                         showToast(`เพิ่ม ${item.name} ลงตะกร้าแล้ว`);
                       }}
-                      className={`w-10 h-10 rounded-full font-bold transition-colors ${added ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
+                      className={`w-10 h-10 rounded-full font-bold transition-colors ${
+                        !isOpen
+                          ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
+                          : added
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-orange-500 text-white hover:bg-orange-600'
+                      }`}
                     >
                       {added ? '✓' : '+'}
                     </button>
                   </div>
-
                 </div>
               );
             })}
