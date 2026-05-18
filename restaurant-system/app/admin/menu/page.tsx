@@ -5,21 +5,29 @@ import { Plus, Pencil, Trash2, X, Check, ToggleLeft, ToggleRight, Search } from 
 
 type Category = 'ก๋วยจั๊บ' | 'ผัก' | 'เครื่องดื่ม';
 
-interface MenuItem {
-  id: number;
-  name: string;
-  category: Category;
+interface Topping {
+  id:    string;
+  name:  string;
   price: number;
-  cost: number;
+}
+
+interface MenuItem {
+  id:          number;
+  name:        string;
+  category:    Category;
+  price:       number;
+  cost:        number;
   isAvailable: boolean;
-  sold: number;
+  sold:        number;
+  ingredients: string[];
+  toppings:    Topping[];
 }
 
 const CATEGORIES: Category[] = ['ก๋วยจั๊บ', 'ผัก', 'เครื่องดื่ม'];
 
 const CAT_COLOR: Record<Category, string> = {
-  'ก๋วยจั๊บ': 'bg-amber-100 text-amber-700',
-  'ผัก': 'bg-emerald-100 text-emerald-700',
+  'ก๋วยจั๊บ':    'bg-amber-100 text-amber-700',
+  'ผัก':          'bg-emerald-100 text-emerald-700',
   'เครื่องดื่ม': 'bg-blue-100 text-blue-700',
 };
 
@@ -32,29 +40,127 @@ function Toast({ msg, show }: { msg: string; show: boolean }) {
   );
 }
 
-const emptyForm = { name: '', category: 'ก๋วยจั๊บ' as Category, price: '', cost: '' };
+const emptyForm = {
+  name:        '',
+  category:    'ก๋วยจั๊บ' as Category,
+  price:       '',
+  cost:        '',
+  ingredients: '',   // comma-separated string ใน form
+  toppings:    [] as Topping[],
+};
 
-function normalize(m: any): MenuItem {
+function normalize(m: unknown): MenuItem {
+  const raw = m as Record<string, unknown>;
+  // parse ingredients (JSON string จาก DB)
+  let ingredients: string[] = [];
+  try {
+    const ing = raw.ingredients;
+    ingredients = typeof ing === 'string' ? JSON.parse(ing) : Array.isArray(ing) ? ing : [];
+  } catch { ingredients = []; }
+
+  // parse toppings (JSON string จาก DB)
+  let toppings: Topping[] = [];
+  try {
+    const top = raw.toppings;
+    toppings = typeof top === 'string' ? JSON.parse(top) : Array.isArray(top) ? top : [];
+  } catch { toppings = []; }
+
   return {
-    id: Number(m.id ?? 0),
-    name: String(m.name ?? ''),
-    category: (m.category ?? 'ก๋วยจั๊บ') as Category,
-    price: Number(m.price ?? 0),
-    cost: Number(m.cost ?? 0),
-    isAvailable: Boolean(m.isAvailable ?? m.available ?? true),
-    sold: Number(m.sold ?? 0),
+    id:          Number(raw.id ?? 0),
+    name:        String(raw.name ?? ''),
+    category:    (raw.category ?? 'ก๋วยจั๊บ') as Category,
+    price:       Number(raw.price ?? 0),
+    cost:        Number(raw.cost ?? 0),
+    isAvailable: Boolean(raw.isAvailable ?? raw.available ?? true),
+    sold:        Number(raw.sold ?? 0),
+    ingredients,
+    toppings,
   };
 }
 
+/* ── Topping row editor ─────────────────────────────── */
+function ToppingEditor({
+  toppings, onChange,
+}: {
+  toppings: Topping[];
+  onChange: (t: Topping[]) => void;
+}) {
+  const [newName,  setNewName]  = useState('');
+  const [newPrice, setNewPrice] = useState('');
+
+  function addTopping() {
+    if (!newName.trim()) return;
+    const topping: Topping = {
+      id:    Date.now().toString(),
+      name:  newName.trim(),
+      price: Number(newPrice) || 0,
+    };
+    onChange([...toppings, topping]);
+    setNewName('');
+    setNewPrice('');
+  }
+
+  function remove(id: string) {
+    onChange(toppings.filter(t => t.id !== id));
+  }
+
+  const inputCls = 'px-3 py-2 text-sm text-white placeholder:text-zinc-500 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500';
+
+  return (
+    <div>
+      {/* existing toppings */}
+      {toppings.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {toppings.map(t => (
+            <div key={t.id} className="flex items-center gap-1.5 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs text-white">
+              <span>{t.name}</span>
+              {t.price > 0 && <span className="text-emerald-400">+฿{t.price}</span>}
+              <button onClick={() => remove(t.id)} className="text-zinc-500 hover:text-red-400 ml-1 transition-colors">
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* add new topping row */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          placeholder="ชื่อท็อปปิ้ง เช่น ไข่เพิ่ม"
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && addTopping()}
+          className={`flex-1 ${inputCls}`}
+        />
+        <input
+          type="number"
+          placeholder="฿0"
+          value={newPrice}
+          onChange={e => setNewPrice(e.target.value)}
+          className={`w-20 ${inputCls}`}
+        />
+        <button
+          onClick={addTopping}
+          className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-colors"
+        >
+          <Plus size={15} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Page ──────────────────────────────────────── */
 export default function MenuPage() {
-  const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filterCat, setFilterCat] = useState<Category | 'ทั้งหมด'>('ทั้งหมด');
-  const [toast, setToast] = useState({ show: false, msg: '' });
-  const [modal, setModal] = useState<'add' | 'edit' | 'delete' | null>(null);
-  const [editTarget, setEditTarget] = useState<MenuItem | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [menu,         setMenu]         = useState<MenuItem[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [search,       setSearch]       = useState('');
+  const [filterCat,    setFilterCat]    = useState<Category | 'ทั้งหมด'>('ทั้งหมด');
+  const [toast,        setToast]        = useState({ show: false, msg: '' });
+  const [modal,        setModal]        = useState<'add' | 'edit' | 'delete' | null>(null);
+  const [editTarget,   setEditTarget]   = useState<MenuItem | null>(null);
+  const [form,         setForm]         = useState(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<MenuItem | null>(null);
 
   useEffect(() => {
@@ -74,7 +180,7 @@ export default function MenuPage() {
   }
 
   const filtered = menu.filter(m => {
-    const matchCat = filterCat === 'ทั้งหมด' || m.category === filterCat;
+    const matchCat    = filterCat === 'ทั้งหมด' || m.category === filterCat;
     const matchSearch = m.name.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
@@ -83,30 +189,61 @@ export default function MenuPage() {
     const item = menu.find(m => m.id === id);
     if (!item) return;
     const next = !item.isAvailable;
-    const res = await fetch(`/api/menu/${id}`, {
-      method: 'PUT',
+    const res     = await fetch(`/api/menu/${id}`, {
+      method:  'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ available: next }),
+      body:    JSON.stringify({ available: next }),
     });
     const updated = normalize(await res.json());
     setMenu(prev => prev.map(m => m.id === id ? updated : m));
     showToast(`${item.name} ${next ? 'เปิดขาย' : 'ปิดขาย'}แล้ว`);
   }
 
-  function openAdd() { setForm(emptyForm); setModal('add'); }
+  function openAdd() {
+    setForm(emptyForm);
+    setModal('add');
+  }
+
   function openEdit(item: MenuItem) {
     setEditTarget(item);
-    setForm({ name: item.name, category: item.category, price: String(item.price), cost: String(item.cost) });
+    setForm({
+      name:        item.name,
+      category:    item.category,
+      price:       String(item.price),
+      cost:        String(item.cost),
+      ingredients: item.ingredients.join(', '),
+      toppings:    item.toppings,
+    });
     setModal('edit');
   }
-  function openDelete(item: MenuItem) { setDeleteTarget(item); setModal('delete'); }
+
+  function openDelete(item: MenuItem) {
+    setDeleteTarget(item);
+    setModal('delete');
+  }
+
+  // แปลง ingredients string → JSON string ก่อนส่ง API
+  function buildPayload() {
+    const ingredientsArr = form.ingredients
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    return {
+      name:        form.name,
+      category:    form.category,
+      price:       Number(form.price),
+      cost:        Number(form.cost),
+      ingredients: JSON.stringify(ingredientsArr),
+      toppings:    JSON.stringify(form.toppings),
+    };
+  }
 
   async function confirmAdd() {
     if (!form.name || !form.price || !form.cost) return;
-    const res = await fetch('/api/menu', {
-      method: 'POST',
+    const res     = await fetch('/api/menu', {
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: form.name, category: form.category, price: Number(form.price), cost: Number(form.cost) }),
+      body:    JSON.stringify(buildPayload()),
     });
     const newItem = normalize(await res.json());
     setMenu(prev => [newItem, ...prev]);
@@ -116,10 +253,10 @@ export default function MenuPage() {
 
   async function confirmEdit() {
     if (!editTarget || !form.name || !form.price || !form.cost) return;
-    const res = await fetch(`/api/menu/${editTarget.id}`, {
-      method: 'PUT',
+    const res     = await fetch(`/api/menu/${editTarget.id}`, {
+      method:  'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: form.name, category: form.category, price: Number(form.price), cost: Number(form.cost) }),
+      body:    JSON.stringify(buildPayload()),
     });
     const updated = normalize(await res.json());
     setMenu(prev => prev.map(m => m.id === editTarget.id ? updated : m));
@@ -141,12 +278,9 @@ export default function MenuPage() {
   const marginColor = (pct: number) =>
     pct >= 55 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400';
 
-  // ---- input class ที่ใช้ซ้ำ ----
   const inputCls = 'w-full px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500';
 
-  if (loading) {
-    return <div className="p-10 text-center text-zinc-400 text-sm">กำลังโหลดเมนู...</div>;
-  }
+  if (loading) return <div className="p-10 text-center text-zinc-400 text-sm">กำลังโหลดเมนู...</div>;
 
   return (
     <div className="p-5 lg:p-7 min-h-screen bg-zinc-100">
@@ -185,10 +319,10 @@ export default function MenuPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         {[
-          { label: 'เมนูทั้งหมด', value: menu.length },
-          { label: 'เปิดขาย', value: menu.filter(m => m.isAvailable).length },
-          { label: 'ปิดขาย', value: menu.filter(m => !m.isAvailable).length },
-          { label: 'ขายได้รวม', value: `${menu.reduce((s, m) => s + m.sold, 0).toLocaleString()} จาน` },
+          { label: 'เมนูทั้งหมด',  value: menu.length },
+          { label: 'เปิดขาย',      value: menu.filter(m => m.isAvailable).length },
+          { label: 'ปิดขาย',       value: menu.filter(m => !m.isAvailable).length },
+          { label: 'ขายได้รวม',    value: `${menu.reduce((s, m) => s + m.sold, 0).toLocaleString()} จาน` },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-2xl p-4 border border-zinc-100">
             <p className="text-xs text-zinc-400 mb-1">{s.label}</p>
@@ -212,8 +346,12 @@ export default function MenuPage() {
           return (
             <div key={item.id}
               className={`grid grid-cols-[1fr_100px_72px_72px_72px_80px_88px] gap-3 items-center px-4 py-3 hover:bg-zinc-50 transition-colors ${idx !== filtered.length - 1 ? 'border-b border-zinc-50' : ''} ${!item.isAvailable ? 'opacity-50' : ''}`}>
-              <div className="flex items-center min-w-0">
+              <div className="flex flex-col min-w-0">
                 <span className="text-sm font-medium text-zinc-800 truncate">{item.name}</span>
+                {/* แสดง ingredients ย่อๆ */}
+                {item.ingredients.length > 0 && (
+                  <span className="text-xs text-zinc-400 truncate">{item.ingredients.join(' · ')}</span>
+                )}
               </div>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium w-fit ${CAT_COLOR[item.category]}`}>
                 {item.category}
@@ -224,7 +362,9 @@ export default function MenuPage() {
               <span className="text-sm text-zinc-500">{item.sold.toLocaleString()}</span>
               <div className="flex items-center gap-2">
                 <button onClick={() => toggleAvailable(item.id)} className="transition-colors">
-                  {item.isAvailable ? <ToggleRight size={22} className="text-emerald-500" /> : <ToggleLeft size={22} className="text-zinc-400" />}
+                  {item.isAvailable
+                    ? <ToggleRight size={22} className="text-emerald-500" />
+                    : <ToggleLeft  size={22} className="text-zinc-400" />}
                 </button>
                 <button onClick={() => openEdit(item)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors">
                   <Pencil size={13} />
@@ -238,21 +378,29 @@ export default function MenuPage() {
         })}
       </div>
 
-      {/* Add / Edit Modal — dark theme */}
+      {/* ── Add / Edit Modal ── */}
       {(modal === 'add' || modal === 'edit') && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{modal === 'add' ? 'เพิ่มเมนูใหม่' : 'แก้ไขเมนู'}</h2>
-              <button onClick={() => setModal(null)} className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"><X size={16} /></button>
+              <h2 className="text-base font-semibold text-white">
+                {modal === 'add' ? 'เพิ่มเมนูใหม่' : 'แก้ไขเมนู'}
+              </h2>
+              <button onClick={() => setModal(null)} className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
+                <X size={16} />
+              </button>
             </div>
+
             <div className="space-y-4">
+              {/* ชื่อเมนู */}
               <div>
                 <label className="text-xs font-medium text-zinc-400 mb-1.5 block">ชื่อเมนู</label>
                 <input type="text" placeholder="เช่น ก๋วยจั๊บน้ำใส" value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   className={inputCls} />
               </div>
+
+              {/* หมวดหมู่ */}
               <div>
                 <label className="text-xs font-medium text-zinc-400 mb-1.5 block">หมวดหมู่</label>
                 <div className="flex gap-2">
@@ -264,6 +412,8 @@ export default function MenuPage() {
                   ))}
                 </div>
               </div>
+
+              {/* ราคา / ต้นทุน */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-zinc-400 mb-1.5 block">ราคาขาย (฿)</label>
@@ -278,6 +428,8 @@ export default function MenuPage() {
                     className={inputCls} />
                 </div>
               </div>
+
+              {/* กำไร preview */}
               {form.price && form.cost && Number(form.price) > 0 && (
                 <div className="flex items-center gap-2 px-3 py-2.5 bg-zinc-800 rounded-xl">
                   <span className="text-xs text-zinc-400">กำไรโดยประมาณ</span>
@@ -286,10 +438,52 @@ export default function MenuPage() {
                   </span>
                 </div>
               )}
+
+              {/* ✅ วัตถุดิบ */}
+              <div>
+                <label className="text-xs font-medium text-zinc-400 mb-1.5 block">
+                  วัตถุดิบ
+                  <span className="text-zinc-600 ml-1">(คั่นด้วยจุลภาค)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="เช่น เส้น, หมู, ไข่, ผักชี, หัวหอม"
+                  value={form.ingredients}
+                  onChange={e => setForm(f => ({ ...f, ingredients: e.target.value }))}
+                  className={inputCls}
+                />
+                {/* preview pills */}
+                {form.ingredients && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {form.ingredients.split(',').map(s => s.trim()).filter(Boolean).map(ing => (
+                      <span key={ing} className="text-xs bg-zinc-800 text-zinc-300 border border-zinc-700 px-2.5 py-1 rounded-full">
+                        {ing}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ✅ ท็อปปิ้ง */}
+              <div>
+                <label className="text-xs font-medium text-zinc-400 mb-1.5 block">
+                  ท็อปปิ้ง / ตัวเลือกเพิ่ม
+                </label>
+                <ToppingEditor
+                  toppings={form.toppings}
+                  onChange={toppings => setForm(f => ({ ...f, toppings }))}
+                />
+              </div>
             </div>
+
             <div className="flex gap-2 mt-6">
-              <button onClick={() => setModal(null)} className="flex-1 py-2.5 text-sm rounded-xl border border-zinc-700 text-zinc-400 hover:bg-zinc-800 transition-colors">ยกเลิก</button>
-              <button onClick={modal === 'add' ? confirmAdd : confirmEdit} disabled={!form.name || !form.price || !form.cost}
+              <button onClick={() => setModal(null)}
+                className="flex-1 py-2.5 text-sm rounded-xl border border-zinc-700 text-zinc-400 hover:bg-zinc-800 transition-colors">
+                ยกเลิก
+              </button>
+              <button
+                onClick={modal === 'add' ? confirmAdd : confirmEdit}
+                disabled={!form.name || !form.price || !form.cost}
                 className="flex-1 py-2.5 text-sm rounded-xl bg-emerald-500 text-white font-medium hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 {modal === 'add' ? 'เพิ่มเมนู' : 'บันทึก'}
               </button>
@@ -310,8 +504,14 @@ export default function MenuPage() {
               <span className="text-white font-medium">"{deleteTarget.name}"</span> จะถูกลบออกจากระบบถาวร
             </p>
             <div className="flex gap-2">
-              <button onClick={() => setModal(null)} className="flex-1 py-2.5 text-sm rounded-xl border border-zinc-700 text-zinc-400 hover:bg-zinc-800 transition-colors">ยกเลิก</button>
-              <button onClick={confirmDelete} className="flex-1 py-2.5 text-sm rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors">ลบเมนู</button>
+              <button onClick={() => setModal(null)}
+                className="flex-1 py-2.5 text-sm rounded-xl border border-zinc-700 text-zinc-400 hover:bg-zinc-800 transition-colors">
+                ยกเลิก
+              </button>
+              <button onClick={confirmDelete}
+                className="flex-1 py-2.5 text-sm rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors">
+                ลบเมนู
+              </button>
             </div>
           </div>
         </div>

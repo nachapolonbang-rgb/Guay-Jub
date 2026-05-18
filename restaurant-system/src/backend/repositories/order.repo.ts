@@ -16,6 +16,9 @@ export async function createOrder(data: any) {
             name:  item.name,
             price: item.price,
             qty:   item.qty,
+            removedIngredients: item.removedIngredients ?? '[]',  // เพิ่ม
+            toppings:           item.toppings           ?? '[]',  // เพิ่ม
+            note:               item.note               ?? '',    // เพิ่ม
           })),
         },
       },

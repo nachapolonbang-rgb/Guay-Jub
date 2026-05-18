@@ -25,6 +25,13 @@ export async function POST(req: Request) {
         price: Number(body.price),
         cost: Number(body.cost),
         category: body.category,
+        ingredients: typeof body.ingredients === 'string'
+          ? body.ingredients
+          : JSON.stringify(body.ingredients ?? []),
+        toppings: typeof body.toppings === 'string'
+          ? body.toppings
+          : JSON.stringify(body.toppings ?? []),
+        isAvailable: body.available != null ? Boolean(body.available) : true,
         // ✅ ลบ description ออก (ไม่มีใน schema)
         // ✅ ลบ available ออก (schema ใช้ isAvailable + มี default อยู่แล้ว)
         // ✅ ลบ sold ออก (มี default(0) ใน schema อยู่แล้ว)

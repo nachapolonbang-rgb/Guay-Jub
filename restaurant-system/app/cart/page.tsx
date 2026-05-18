@@ -27,25 +27,30 @@ export default function CartPage() {
   const [discount, setDiscount] = useState(0);
   const [error, setError] = useState('');
   const [mounted, setMounted] = useState(false);
-  const [removingId, setRemovingId] = useState<number | null>(null);
+  // ✅ เปลี่ยนจาก number | null → string | null เพื่อรับ cartKey
+  const [removingKey, setRemovingKey] = useState<string | null>(null);
   const [codeApplied, setCodeApplied] = useState(false);
 
-  const [guestName, setGuestName]     = useState('');
-  const [guestPhone, setGuestPhone]   = useState('');
-  const [phoneError, setPhoneError]   = useState('');
-  const [orderType, setOrderType]     = useState<'dine-in' | 'takeaway'>('dine-in');
+  const [guestName, setGuestName]   = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [orderType, setOrderType]   = useState<'dine-in' | 'takeaway'>('dine-in');
 
   useEffect(() => {
     setTimeout(() => setMounted(true), 50);
   }, []);
 
-  const handleDecrease = (id: number) => {
-    const item = cart.find(i => i.id === id);
+  // ✅ รับ cartKey (string) แทน id (number)
+  const handleDecrease = (cartKey: string) => {
+    const item = cart.find(i => i.cartKey === cartKey);
     if (item && item.qty === 1) {
-      setRemovingId(id);
-      setTimeout(() => { decrease(id); setRemovingId(null); }, 300);
+      setRemovingKey(cartKey);
+      setTimeout(() => {
+        decrease(cartKey);
+        setRemovingKey(null);
+      }, 300);
     } else {
-      decrease(id);
+      decrease(cartKey);
     }
   };
 
@@ -60,10 +65,14 @@ export default function CartPage() {
   };
 
   const handlePhoneChange = (v: string) => {
-    // รับแค่ตัวเลข, -, วรรค
     const cleaned = v.replace(/[^\d\-\s]/g, '');
     setGuestPhone(cleaned);
-    if (phoneError) setPhoneError(validatePhone(cleaned));
+    const currentDigits = cleaned.replace(/\D/g, '');
+    if (currentDigits.length === 10 && currentDigits.startsWith('0')) {
+      setPhoneError('');
+    } else if (phoneError) {
+      setPhoneError(validatePhone(cleaned));
+    }
   };
 
   const handlePay = () => {
@@ -73,7 +82,9 @@ export default function CartPage() {
     localStorage.setItem('guestName',  guestName.trim());
     localStorage.setItem('guestPhone', guestPhone.replace(/\D/g, ''));
     localStorage.setItem('orderType',  orderType);
+    localStorage.setItem('subtotal',   String(subtotal));
     localStorage.setItem('discount',   String(discount));
+    localStorage.setItem('total',      String(total));
     router.push('/checkout');
   };
 
@@ -219,9 +230,10 @@ export default function CartPage() {
             <div className="md:col-span-2 space-y-3">
               {cart.map((item, i) => (
                 <div
-                  key={item.id}
+                  // ✅ ใช้ cartKey แทน id — unique เสมอแม้สั่งเมนูเดิมต่าง customization
+                  key={item.cartKey}
                   className={`bg-white rounded-2xl border border-[#F3DDD0] card-hover overflow-hidden
-                    ${removingId === item.id ? 'removing' : mounted ? `slide-up d-${Math.min(i + 1, 5) as 1|2|3|4|5}` : 'opacity-0'}`}
+                    ${removingKey === item.cartKey ? 'removing' : mounted ? `slide-up d-${Math.min(i + 1, 5) as 1|2|3|4|5}` : 'opacity-0'}`}
                 >
                   <div className="flex items-center justify-between p-4 gap-3">
                     <div className="w-18 h-18 rounded-xl overflow-hidden flex-shrink-0 bg-orange-50" style={{ width: 72, height: 72 }}>
@@ -232,15 +244,17 @@ export default function CartPage() {
                       <p className="text-[#E8530A] font-bold text-sm mt-0.5">฿{item.price.toLocaleString()}</p>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+                      {/* ✅ ส่ง cartKey เข้า handleDecrease */}
                       <button
-                        onClick={() => handleDecrease(item.id)}
+                        onClick={() => handleDecrease(item.cartKey)}
                         className="qty-btn"
                         style={{ background: item.qty === 1 ? '#FEE2E2' : '#F3F4F6', color: item.qty === 1 ? '#EF4444' : '#374151' }}
                       >
                         {item.qty === 1 ? '🗑' : '−'}
                       </button>
                       <span key={item.qty} className="font-bold text-[#3D1A00] text-sm w-6 text-center pop-in">{item.qty}</span>
-                      <button onClick={() => increase(item.id)} className="qty-btn" style={{ background: '#FFF3EB', color: '#E8530A' }}>+</button>
+                      {/* ✅ ส่ง cartKey เข้า increase */}
+                      <button onClick={() => increase(item.cartKey)} className="qty-btn" style={{ background: '#FFF3EB', color: '#E8530A' }}>+</button>
                     </div>
                     <div className="text-right flex-shrink-0 w-16">
                       <p className="font-bold text-[#3D1A00] text-sm">฿{(item.price * item.qty).toLocaleString()}</p>
@@ -368,7 +382,7 @@ export default function CartPage() {
                 {/* PAY BUTTON */}
                 <button
                   onClick={handlePay}
-                  disabled={guestPhone.replace(/\D/g, '').length !== 10}
+                  disabled={guestPhone.replace(/\D/g, '').length !== 10 || phoneError !== ''}
                   className="pay-btn w-full mt-5 text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"
                 >
                   💳 ชำระเงิน →

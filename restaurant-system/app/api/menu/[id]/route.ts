@@ -12,7 +12,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         ...(body.price != null    && { price: Number(body.price) }),
         ...(body.cost != null     && { cost: Number(body.cost) }),
         ...(body.category != null && { category: body.category }),
-        ...(body.available != null && { isAvailable: body.available }),
+        ...(body.ingredients != null && {
+          ingredients: typeof body.ingredients === 'string'
+            ? body.ingredients
+            : JSON.stringify(body.ingredients ?? []),
+        }),
+        ...(body.toppings != null && {
+          toppings: typeof body.toppings === 'string'
+            ? body.toppings
+            : JSON.stringify(body.toppings ?? []),
+        }),
+        ...(body.available != null && { isAvailable: Boolean(body.available) }),
       },
     });
     return NextResponse.json(updated);

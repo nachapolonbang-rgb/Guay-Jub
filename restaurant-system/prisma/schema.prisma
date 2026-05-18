@@ -31,6 +31,10 @@ model OrderItem {
   qty     Int
 
   order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  removedIngredients String @default("[]")
+  toppings           String @default("[]")
+  note               String @default("")
 }
 
 model User {
@@ -52,6 +56,9 @@ model MenuItem {
   isAvailable Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  ingredients String @default("[]")
+  toppings    String @default("[]")
 }
 
 model Promotion {

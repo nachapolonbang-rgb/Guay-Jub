@@ -5,7 +5,18 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/src/backend/components/Navbar';
 import { useCart } from '@/src/backend/context/CartContext';
 
-type CartItem = { id: number; name: string; price: number; image: string; qty: number };
+type CartItem = {
+  id:    number;
+  name:  string;
+  price: number;
+  image: string;
+  qty:   number;
+  customization?: {
+    removed:  string[];
+    toppings: string[];
+    note:     string;
+  };
+};
 type PayMethod = 'cash' | 'qr';
 
 export default function CheckoutPage() {
@@ -74,7 +85,14 @@ export default function CheckoutPage() {
           guestName,
           guestPhone,
           orderType,
-          items: cart.map(i => ({ name: i.name, price: i.price, qty: i.qty })),
+          items: cart.map(i => ({
+            name:               i.name,
+            price:              i.price,
+            qty:                i.qty,
+            removedIngredients: JSON.stringify(i.customization?.removed  ?? []),
+            toppings:           JSON.stringify(i.customization?.toppings ?? []),
+            note:               i.customization?.note ?? '',
+          })),
           total,
           paymentMethod: method,
           paymentStatus: 'paid',

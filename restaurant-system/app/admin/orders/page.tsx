@@ -3,29 +3,36 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Plus, X, Check, ChevronDown, ChevronUp,
-  Clock, Search, Receipt, User, Phone,
+  Clock, Search, Receipt, User, Phone, Tag, Minus, Sparkles,
 } from 'lucide-react';
 
 // ---- Types ----
 type OrderStatus = 'new' | 'cooking' | 'ready' | 'done';
 type PaymentStatus = 'pending' | 'paid' | 'cancelled';
 
+interface Customization {
+  removed:  string[];
+  toppings: string[];
+  note:     string;
+}
+
 interface OrderItem {
-  name: string;
-  qty: number;
-  price: number;
+  name:           string;
+  qty:            number;
+  price:          number;
+  customization?: Customization;
 }
 
 interface Order {
-  id: number;
-  items: OrderItem[];
-  status: OrderStatus;
+  id:            number;
+  items:         OrderItem[];
+  status:        OrderStatus;
   paymentStatus: PaymentStatus;
   paymentMethod?: string;
-  note: string;
-  customerName: string;
+  note:          string;
+  customerName:  string;
   customerPhone: string;
-  createdAt: Date;
+  createdAt:     Date;
 }
 
 // ---- Config ----
@@ -39,19 +46,19 @@ const STATUS_META: Record<OrderStatus, { label: string; bg: string; text: string
 };
 
 const PAYMENT_META: Record<PaymentStatus, { label: string; bg: string; text: string; dot: string }> = {
-  pending:   { label: 'รอชำระเงิน', bg: 'bg-amber-50',    text: 'text-amber-700',    dot: 'bg-amber-400' },
-  paid:      { label: 'ชำระแล้ว',  bg: 'bg-emerald-50',  text: 'text-emerald-700',  dot: 'bg-emerald-500' },
-  cancelled: { label: 'ยกเลิก',    bg: 'bg-red-50',      text: 'text-red-700',      dot: 'bg-red-400' },
+  pending:   { label: 'รอชำระเงิน', bg: 'bg-amber-50',   text: 'text-amber-700',   dot: 'bg-amber-400' },
+  paid:      { label: 'ชำระแล้ว',  bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  cancelled: { label: 'ยกเลิก',    bg: 'bg-red-50',     text: 'text-red-700',     dot: 'bg-red-400' },
 };
 
 const MENU_OPTIONS = [
-  { label: 'ก๋วยจั๊บน้ำใส',    price: 50 },
-  { label: 'ก๋วยจั๊บน้ำข้น',    price: 60 },
-  { label: 'ก๋วยจั๊บพิเศษ',     price: 80 },
-  { label: 'ผักบุ้งไฟแดง',      price: 40 },
-  { label: 'คะน้าน้ำมันหอย',    price: 45 },
-  { label: 'น้ำเปล่า',           price: 10 },
-  { label: 'น้ำอัดลม',           price: 20 },
+  { label: 'ก๋วยจั๊บน้ำใส',  price: 50 },
+  { label: 'ก๋วยจั๊บน้ำข้น',  price: 60 },
+  { label: 'ก๋วยจั๊บพิเศษ',   price: 80 },
+  { label: 'ผักบุ้งไฟแดง',    price: 40 },
+  { label: 'คะน้าน้ำมันหอย',  price: 45 },
+  { label: 'น้ำเปล่า',         price: 10 },
+  { label: 'น้ำอัดลม',         price: 20 },
 ];
 
 // ---- Helpers ----
@@ -77,6 +84,11 @@ function parseOrder(raw: any): Order {
     name:  item.name,
     qty:   item.qty,
     price: item.price,
+    customization: {
+    removed:  JSON.parse(item.removedIngredients ?? '[]'),
+    toppings: JSON.parse(item.toppings ?? '[]'),
+    note:     item.note ?? '',
+  },
   }));
 
   return {
@@ -90,6 +102,88 @@ function parseOrder(raw: any): Order {
     customerPhone: raw.guestPhone ?? raw.customerPhone ?? '',
     createdAt:     new Date(raw.createdAt),
   };
+}
+
+// ---- Customization badge (compact, for header) ----
+function CustomizationBadges({ item }: { item: OrderItem }) {
+  const c = item.customization;
+  if (!c) return null;
+
+  const hasRemoved  = c.removed?.length > 0;
+  const hasToppings = c.toppings?.length > 0;
+  const hasNote     = !!c.note;
+
+  if (!hasRemoved && !hasToppings && !hasNote) return null;
+
+  return (
+    <span className="flex items-center gap-1 flex-wrap">
+      {hasRemoved && c.removed.map(r => (
+        <span key={r} className="inline-flex items-center gap-0.5 text-[10px] font-medium bg-red-50 text-red-500 px-1.5 py-0.5 rounded-md">
+          <Minus size={9} />
+          {r}
+        </span>
+      ))}
+      {hasToppings && c.toppings.map(t => (
+        <span key={t} className="inline-flex items-center gap-0.5 text-[10px] font-medium bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded-md">
+          <Sparkles size={9} />
+          {t}
+        </span>
+      ))}
+      {hasNote && (
+        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md">
+          <Tag size={9} />
+          {c.note}
+        </span>
+      )}
+    </span>
+  );
+}
+
+// ---- Customization detail block (for expanded section) ----
+function CustomizationDetail({ item }: { item: OrderItem }) {
+  const c = item.customization;
+  if (!c) return null;
+
+  const hasRemoved  = c.removed?.length > 0;
+  const hasToppings = c.toppings?.length > 0;
+  const hasNote     = !!c.note;
+
+  if (!hasRemoved && !hasToppings && !hasNote) return null;
+
+  return (
+    <div className="mt-1.5 ml-2 pl-2 border-l-2 border-zinc-100 space-y-1">
+      {hasRemoved && (
+        <div className="flex items-start gap-1.5">
+          <span className="text-[10px] font-semibold text-red-400 mt-0.5 shrink-0">ตัดออก</span>
+          <div className="flex flex-wrap gap-1">
+            {c.removed.map(r => (
+              <span key={r} className="inline-flex items-center gap-0.5 text-[10px] bg-red-50 text-red-500 px-1.5 py-0.5 rounded-md font-medium">
+                <Minus size={8} />{r}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {hasToppings && (
+        <div className="flex items-start gap-1.5">
+          <span className="text-[10px] font-semibold text-violet-400 mt-0.5 shrink-0">ท็อปปิ้ง</span>
+          <div className="flex flex-wrap gap-1">
+            {c.toppings.map(t => (
+              <span key={t} className="inline-flex items-center gap-0.5 text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded-md font-medium">
+                <Sparkles size={8} />{t}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {hasNote && (
+        <div className="flex items-start gap-1.5">
+          <span className="text-[10px] font-semibold text-amber-400 mt-0.5 shrink-0">หมายเหตุ</span>
+          <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">{c.note}</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ---- Sub-components ----
@@ -138,20 +232,36 @@ function OrderCard({ order, onCycle, onDelete }: { order: Order; onCycle: () => 
 
   const t = total(order.items);
 
+  // ตรวจว่า order นี้มี customization ใดๆ บ้าง (สำหรับ header)
+  const hasAnyCustomization = order.items.some(item => {
+    const c = item.customization;
+    return c && (c.removed?.length > 0 || c.toppings?.length > 0 || !!c.note);
+  });
+
   return (
     <div className={`bg-white rounded-2xl border border-zinc-100 overflow-hidden transition-all ${order.status === 'done' ? 'opacity-60' : ''}`}>
       {/* Card header */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        <span className="text-sm font-semibold text-zinc-800 w-10 shrink-0">
+      <div className="flex items-start gap-3 px-4 py-3">
+        <span className="text-sm font-semibold text-zinc-800 w-10 shrink-0 pt-0.5">
           #{String(order.id).padStart(3, '0')}
         </span>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <p className="text-sm text-zinc-700 truncate flex-1">
-              {order.items.map(i => `${i.name} ×${i.qty}`).join(', ')}
-            </p>
+          {/* รายการเมนู + customization badges (header) */}
+          <div className="space-y-1 mb-1.5">
+            {order.items.map((item, idx) => (
+              <div key={idx}>
+                <p className="text-sm text-zinc-700">
+                  {item.name} <span className="text-zinc-400">×{item.qty}</span>
+                  <span className="text-zinc-400 text-xs ml-1">฿{item.price * item.qty}</span>
+                </p>
+                {/* badges ย่อ: ตัดออก / ท็อปปิ้ง / หมายเหตุ */}
+                <CustomizationBadges item={item} />
+              </div>
+            ))}
           </div>
+
+          {/* row: ชื่อ / โทร / payment / เวลา / หมายเหตุออร์เดอร์ */}
           <div className="flex items-center gap-2 flex-wrap">
             {order.customerName && (
               <span className="flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded-lg">
@@ -172,25 +282,28 @@ function OrderCard({ order, onCycle, onDelete }: { order: Order; onCycle: () => 
             </span>
             {order.note && (
               <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">
-                {order.note}
+                📝 {order.note}
               </span>
             )}
           </div>
         </div>
 
-        <span className="text-sm font-semibold text-zinc-900 shrink-0">฿{t}</span>
-        <StatusPill status={order.status} onClick={onCycle} />
-        <button
-          onClick={() => setExpanded(v => !v)}
-          className="p-1.5 rounded-lg hover:bg-zinc-50 text-zinc-400 transition-colors shrink-0"
-        >
-          {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-sm font-semibold text-zinc-900">฿{t}</span>
+          <StatusPill status={order.status} onClick={onCycle} />
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="p-1.5 rounded-lg hover:bg-zinc-50 text-zinc-400 transition-colors"
+          >
+            {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </button>
+        </div>
       </div>
 
       {/* Expanded detail */}
       {expanded && (
         <div className="border-t border-zinc-50 px-4 pb-4 pt-3 bg-zinc-50/50">
+          {/* ชื่อ + โทร */}
           <div className="mb-3 pb-3 border-b border-zinc-100">
             {(order.customerName || order.customerPhone) && (
               <div className="flex items-center gap-4 mb-2">
@@ -208,24 +321,39 @@ function OrderCard({ order, onCycle, onDelete }: { order: Order; onCycle: () => 
                 )}
               </div>
             )}
-            <div>
-              <PaymentPill paymentStatus={order.paymentStatus} />
-            </div>
+            <PaymentPill paymentStatus={order.paymentStatus} />
           </div>
 
-          <div className="space-y-1.5 mb-3">
+          {/* รายการอาหาร + customization detail (expanded) */}
+          <div className="space-y-3 mb-3">
             {order.items.map((item, i) => (
-              <div key={i} className="flex justify-between text-sm">
-                <span className="text-zinc-600">{item.name} <span className="text-zinc-400">×{item.qty}</span></span>
-                <span className="text-zinc-700 font-medium">฿{item.price * item.qty}</span>
+              <div key={i}>
+                <div className="flex justify-between text-sm">
+                  <span className="text-zinc-600">
+                    {item.name} <span className="text-zinc-400">×{item.qty}</span>
+                  </span>
+                  <span className="text-zinc-700 font-medium">฿{item.price * item.qty}</span>
+                </div>
+                {/* detail block: ตัดออก / ท็อปปิ้ง / หมายเหตุ */}
+                <CustomizationDetail item={item} />
               </div>
             ))}
+
             <div className="flex justify-between text-sm font-semibold pt-2 border-t border-zinc-100">
               <span className="text-zinc-800">รวม</span>
               <span className="text-zinc-900">฿{t}</span>
             </div>
           </div>
 
+          {/* หมายเหตุออร์เดอร์ */}
+          {order.note && (
+            <div className="mb-3 px-3 py-2 bg-amber-50 rounded-xl text-xs text-amber-700 flex items-start gap-1.5">
+              <Tag size={11} className="mt-0.5 shrink-0 text-amber-400" />
+              <span>{order.note}</span>
+            </div>
+          )}
+
+          {/* Progress + actions */}
           <div className="flex items-center gap-2 justify-between">
             <div className="flex items-center gap-1">
               {STATUS_CYCLE.map((s, i) => {
@@ -444,9 +572,7 @@ export default function OrdersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: next }),
       });
-
       if (!res.ok) throw new Error('update failed');
-
       const updated = parseOrder(await res.json());
       setOrders(prev => prev.map(o => o.id === id ? updated : o));
       showToast(`#${String(id).padStart(3, '0')} → ${STATUS_META[next].label}`);
@@ -456,7 +582,6 @@ export default function OrdersPage() {
     }
   }
 
-  // ✅ แก้แล้ว — call DELETE API ก่อน แล้วค่อยลบออกจาก state
   async function deleteOrder(id: number) {
     const confirmed = window.confirm('แน่ใจหรือไม่ว่าต้องการลบออร์เดอร์นี้? ข้อมูลจะไม่สามารถกู้คืนได้');
     if (!confirmed) return;
@@ -464,7 +589,6 @@ export default function OrdersPage() {
     try {
       const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('delete failed');
-
       setOrders(prev => {
         const o = prev.find(x => x.id === id);
         if (o) showToast(`ลบออร์เดอร์ #${String(o.id).padStart(3, '0')} แล้ว`);
@@ -475,12 +599,7 @@ export default function OrdersPage() {
     }
   }
 
-  async function addOrder(
-    lines: FormLine[],
-    note: string,
-    customerName: string,
-    customerPhone: string,
-  ) {
+  async function addOrder(lines: FormLine[], note: string, customerName: string, customerPhone: string) {
     const items: OrderItem[] = lines.map(l => ({
       name:  MENU_OPTIONS[l.menuIdx].label,
       qty:   l.qty,
@@ -491,17 +610,9 @@ export default function OrdersPage() {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items,
-          note,
-          guestName:  customerName,
-          guestPhone: customerPhone,
-          orderType: 'dine-in',
-        }),
+        body: JSON.stringify({ items, note, guestName: customerName, guestPhone: customerPhone, orderType: 'dine-in' }),
       });
-
       if (!res.ok) throw new Error('create failed');
-
       const created = parseOrder(await res.json());
       setOrders(prev => [created, ...prev]);
       setShowModal(false);
