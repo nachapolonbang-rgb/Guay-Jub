@@ -53,3 +53,32 @@ model MenuItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model Promotion {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  detail      String?
+  date        String
+  status      String   @default("active") // 'active' | 'upcoming' | 'ended'
+  tag         String   @default("ข่าวสาร") // 'ข่าวสาร' | 'เมนูใหม่' | 'กิจกรรม' | 'ประกาศ' | 'โปรโมชั่น'
+  emoji       String   @default("📢")
+  discount    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DiscountCode {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  description String
+  type        String   // 'fixed' | 'percent'
+  value       Float
+  minOrder    Float    @default(0)
+  usedCount   Int      @default(0)
+  maxUses     Int?
+  active      Boolean  @default(true)
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
