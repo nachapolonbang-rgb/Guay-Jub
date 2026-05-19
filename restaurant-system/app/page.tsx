@@ -15,6 +15,21 @@ const MENU_ITEMS = [
 
 const SPEECH = ['ยินดีต้อนรับค่ะ! 🍜', 'อร่อยแน่นอนค่ะ! 🎉', 'รับเมนูไหนดีคะ? 😊'];
 
+/* ─── Gallery items ─────────────────────────────────── */
+const GALLERY = [
+  { image: '/images/noodle-pink-bowl.png', label: 'ก๋วยจั๊บน้ำข้น', tag: 'bestseller' },
+  { image: '/images/noodle-white-bowl.png', label: 'ก๋วยจั๊บน้ำใส', tag: 'popular' },
+  { image: '/images/jelly-dessert.png', label: 'วุ้นมะพร้าว', tag: 'dessert' },
+  { image: '/images/preview-1.png', label: 'เมนูพิเศษ', tag: 'special' },
+];
+
+const TAG_COLOR: Record<string, { bg: string; text: string }> = {
+  bestseller: { bg: '#FF7A20', text: '#fff' },
+  popular:    { bg: '#FFD0A0', text: '#9a4a10' },
+  dessert:    { bg: '#fce7f3', text: '#be185d' },
+  special:    { bg: '#e0f2fe', text: '#0369a1' },
+};
+
 /* ─── Toast ─────────────────────────────────────────── */
 function Toast({ show, msg }: { show: boolean; msg: string }) {
   return (
@@ -24,14 +39,11 @@ function Toast({ show, msg }: { show: boolean; msg: string }) {
       opacity: show ? 1 : 0,
       pointerEvents: 'none',
       transition: 'all 0.3s cubic-bezier(.4,0,.2,1)',
-      background: '#3d200a',
-      color: '#FFD58A',
-      padding: '11px 24px',
-      borderRadius: 999,
+      background: '#3d200a', color: '#FFD58A',
+      padding: '11px 24px', borderRadius: 999,
       fontSize: 13, fontWeight: 700,
       boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-      zIndex: 999,
-      display: 'flex', alignItems: 'center', gap: 8,
+      zIndex: 999, display: 'flex', alignItems: 'center', gap: 8,
       whiteSpace: 'nowrap',
     }}>
       ✓ {msg}
@@ -53,9 +65,8 @@ export default function Home() {
   const [addedId, setAddedId]       = useState<number | null>(null);
   const [toast, setToast]           = useState({ show: false, msg: '' });
   const [mounted, setMounted]       = useState(false);
-
-  // hover state per card
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+  const [hoveredGallery, setHoveredGallery] = useState<number | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -108,20 +119,12 @@ export default function Home() {
 
       {/* ════ HERO ════ */}
       <section className="relative flex flex-col md:flex-row items-center justify-center px-10 pt-10 pb-32 min-h-[650px] z-10">
-
-        {/* LEFT – chef + bowl */}
         <div className="relative w-full md:w-1/2 flex justify-center items-center">
-          {/* Bowl */}
           <img
             src={bgNoodle}
             className="absolute w-[500px] md:w-[650px] z-0 opacity-100 filter drop-shadow-2xl"
-            style={{
-              transform: `translate(${mousePos.x * 3}px, ${mousePos.y * 3}px)`,
-              transition: 'transform 0.08s linear',
-            }}
+            style={{ transform: `translate(${mousePos.x * 3}px, ${mousePos.y * 3}px)`, transition: 'transform 0.08s linear' }}
           />
-
-          {/* Chef + speech */}
           <div className="relative z-10 mt-20 translate-x-10 md:translate-x-20">
             {showSpeech && (
               <div className="speech-pop absolute -top-16 left-1/2 -translate-x-1/2 bg-white border border-orange-100 rounded-2xl px-6 py-2 shadow-xl z-20 whitespace-nowrap font-bold text-[#5a2d0c] text-sm"
@@ -134,93 +137,36 @@ export default function Home() {
             <img
               src={chefImage}
               className="chef-float w-64 md:w-[400px] drop-shadow-2xl cursor-pointer select-none"
-              style={{
-                transform: `translate(${mousePos.x * 2}px, ${mousePos.y * 2}px)`,
-                transition: 'transform 0.08s linear',
-                filter: 'drop-shadow(0 24px 40px rgba(100,40,10,0.18))',
-              }}
+              style={{ transform: `translate(${mousePos.x * 2}px, ${mousePos.y * 2}px)`, transition: 'transform 0.08s linear', filter: 'drop-shadow(0 24px 40px rgba(100,40,10,0.18))' }}
               onClick={() => { setSpeechIdx(i => (i + 1) % SPEECH.length); setShowSpeech(true); }}
             />
           </div>
         </div>
 
-        {/* RIGHT – text */}
         <div className="w-full md:w-1/2 z-10 mt-16 md:mt-0 md:pl-20">
           <div className="hero-text" style={{ animationDelay: '0.1s' }}>
-            {/* eyebrow */}
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              background: 'linear-gradient(135deg,#FFE8D0,#FFD0A0)',
-              color: '#9a4a10', fontSize: 12, fontWeight: 700,
-              padding: '5px 14px', borderRadius: 999, marginBottom: 18,
-              letterSpacing: 1.2, textTransform: 'uppercase',
-            }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'linear-gradient(135deg,#FFE8D0,#FFD0A0)', color: '#9a4a10', fontSize: 12, fontWeight: 700, padding: '5px 14px', borderRadius: 999, marginBottom: 18, letterSpacing: 1.2, textTransform: 'uppercase' }}>
               🍜 อาหารบ้านๆ รสมือแม่
             </div>
-
             <h1 className="text-[60px] md:text-[80px] font-black mb-4 leading-none text-[#3d200a]">
               Grandma's <br />
-              <span style={{
-                background: 'linear-gradient(135deg,#e3523d,#FF8C42)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>
+              <span style={{ background: 'linear-gradient(135deg,#e3523d,#FF8C42)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 restaurant
               </span>
             </h1>
-
             <p className="text-[#8b5e3c] mb-10 max-w-sm text-lg leading-relaxed font-medium">
               Get ready to savor Grandma's delicious home-cooked meals and many other special dishes from us.
             </p>
-
-            {/* CTA buttons */}
             <div className="flex gap-4 flex-wrap">
-              <Link
-                href="/menu"
-                style={{
-                  background: 'linear-gradient(135deg,#FF7A20,#e3523d)',
-                  color: '#fff',
-                  padding: '14px 32px',
-                  borderRadius: 999,
-                  fontWeight: 800, fontSize: 15,
-                  textDecoration: 'none',
-                  boxShadow: '0 8px 24px rgba(220,80,20,0.35)',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                  display: 'inline-block',
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1.05)';
-                  (e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 12px 32px rgba(220,80,20,0.45)';
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1)';
-                  (e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 8px 24px rgba(220,80,20,0.35)';
-                }}
-              >
-                🛒 Order Now
-              </Link>
-
-              <Link
-                href="/menu"
-                style={{
-                  background: '#fff',
-                  color: '#3d200a',
-                  padding: '14px 28px',
-                  borderRadius: 999,
-                  fontWeight: 700, fontSize: 15,
-                  border: '1.5px solid #FFD0A0',
-                  textDecoration: 'none',
-                  transition: 'background 0.2s',
-                  display: 'inline-block',
-                }}
+              <Link href="/menu" style={{ background: 'linear-gradient(135deg,#FF7A20,#e3523d)', color: '#fff', padding: '14px 32px', borderRadius: 999, fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 8px 24px rgba(220,80,20,0.35)', transition: 'transform 0.2s, box-shadow 0.2s', display: 'inline-block' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1.05)'; (e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 12px 32px rgba(220,80,20,0.45)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1)'; (e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 8px 24px rgba(220,80,20,0.35)'; }}
+              >🛒 Order Now</Link>
+              <Link href="/menu" style={{ background: '#fff', color: '#3d200a', padding: '14px 28px', borderRadius: 999, fontWeight: 700, fontSize: 15, border: '1.5px solid #FFD0A0', textDecoration: 'none', transition: 'background 0.2s', display: 'inline-block' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = '#FFF0E0'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = '#fff'; }}
-              >
-                ดูเมนูทั้งหมด →
-              </Link>
+              >ดูเมนูทั้งหมด →</Link>
             </div>
-
-            {/* Stats */}
             <div style={{ display: 'flex', gap: 32, marginTop: 40, paddingTop: 32, borderTop: '1px solid #FFE0C0' }}>
               {[['200+','เมนู'],['4.9★','Rating'],['5K+','ลูกค้า']].map(([n, l]) => (
                 <div key={l}>
@@ -236,9 +182,7 @@ export default function Home() {
       {/* ════ MENU SECTION ════ */}
       <section className="px-10 py-24 relative z-10" style={{ background: 'linear-gradient(160deg,#fff 0%,#FFF5EC 100%)' }}>
         <div className="max-w-6xl mx-auto text-center mb-16">
-          <p style={{ fontSize: 11, fontWeight: 700, color: '#E05A00', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>
-            เมนูแนะนำ
-          </p>
+          <p style={{ fontSize: 11, fontWeight: 700, color: '#E05A00', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>เมนูแนะนำ</p>
           <h2 className="text-4xl font-black text-[#3d200a] mb-4">เมนูเด็ดประจำร้าน</h2>
           <div className="h-1.5 w-16 mx-auto rounded-full" style={{ background: 'linear-gradient(90deg,#FF7A20,#e3523d)' }} />
         </div>
@@ -248,72 +192,19 @@ export default function Home() {
             const isAdded   = addedId === item.id;
             const isHovered = hoveredCard === item.id;
             return (
-              <div
-                key={item.id}
+              <div key={item.id}
                 onMouseEnter={() => setHoveredCard(item.id)}
                 onMouseLeave={() => setHoveredCard(null)}
-                style={{
-                  background: '#fff',
-                  borderRadius: 24,
-                  overflow: 'hidden',
-                  border: '1px solid #FFE8D0',
-                  boxShadow: isHovered
-                    ? '0 20px 50px rgba(220,80,20,0.16)'
-                    : '0 2px 16px rgba(0,0,0,0.06)',
-                  transform: isHovered ? 'translateY(-6px) scale(1.01)' : 'translateY(0) scale(1)',
-                  transition: 'all 0.35s cubic-bezier(.4,0,.2,1)',
-                }}
+                style={{ background: '#fff', borderRadius: 24, overflow: 'hidden', border: '1px solid #FFE8D0', boxShadow: isHovered ? '0 20px 50px rgba(220,80,20,0.16)' : '0 2px 16px rgba(0,0,0,0.06)', transform: isHovered ? 'translateY(-6px) scale(1.01)' : 'translateY(0) scale(1)', transition: 'all 0.35s cubic-bezier(.4,0,.2,1)' }}
               >
-                {/* Image */}
                 <div style={{ position: 'relative', height: 220, overflow: 'hidden', background: '#FFF0E4' }}>
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    style={{
-                      width: '100%', height: '100%', objectFit: 'cover',
-                      transform: isHovered ? 'scale(1.07)' : 'scale(1)',
-                      transition: 'transform 0.5s cubic-bezier(.4,0,.2,1)',
-                    }}
-                  />
-                  {/* price badge */}
-                  <div style={{
-                    position: 'absolute', top: 12, right: 12,
-                    background: 'rgba(255,255,255,0.92)',
-                    backdropFilter: 'blur(6px)',
-                    borderRadius: 999, padding: '4px 12px',
-                    fontWeight: 800, fontSize: 14, color: '#E05A00',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                  }}>
-                    ฿{item.price}
-                  </div>
+                  <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: isHovered ? 'scale(1.07)' : 'scale(1)', transition: 'transform 0.5s cubic-bezier(.4,0,.2,1)' }} />
+                  <div style={{ position: 'absolute', top: 12, right: 12, background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(6px)', borderRadius: 999, padding: '4px 12px', fontWeight: 800, fontSize: 14, color: '#E05A00', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>฿{item.price}</div>
                 </div>
-
-                {/* Body */}
                 <div style={{ padding: '18px 20px 20px' }}>
                   <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: '#1a0800' }}>{item.name}</h3>
                   <p style={{ margin: '0 0 18px', fontSize: 13, color: '#9a7060', lineHeight: 1.6 }}>{item.desc}</p>
-
-                  <button
-                    onClick={() => handleAddToCart(item)}
-                    style={{
-                      width: '100%',
-                      padding: '12px 0',
-                      borderRadius: 14,
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontWeight: 700, fontSize: 14,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      background: isAdded
-                        ? 'linear-gradient(135deg,#16a34a,#15803d)'
-                        : isHovered
-                          ? 'linear-gradient(135deg,#FF7A20,#e3523d)'
-                          : 'linear-gradient(135deg,#FFE8D0,#FFD0A0)',
-                      color: (isAdded || isHovered) ? '#fff' : '#9a4a10',
-                      boxShadow: (isAdded || isHovered) ? '0 6px 20px rgba(220,80,20,0.3)' : 'none',
-                      transition: 'all 0.25s cubic-bezier(.4,0,.2,1)',
-                      animation: isAdded ? 'cartBounce 0.45s ease' : 'none',
-                    }}
-                  >
+                  <button onClick={() => handleAddToCart(item)} style={{ width: '100%', padding: '12px 0', borderRadius: 14, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: isAdded ? 'linear-gradient(135deg,#16a34a,#15803d)' : isHovered ? 'linear-gradient(135deg,#FF7A20,#e3523d)' : 'linear-gradient(135deg,#FFE8D0,#FFD0A0)', color: (isAdded || isHovered) ? '#fff' : '#9a4a10', boxShadow: (isAdded || isHovered) ? '0 6px 20px rgba(220,80,20,0.3)' : 'none', transition: 'all 0.25s cubic-bezier(.4,0,.2,1)', animation: isAdded ? 'cartBounce 0.45s ease' : 'none' }}>
                     <span style={{ fontSize: 16 }}>{isAdded ? '✓' : '🛒'}</span>
                     {isAdded ? 'เพิ่มแล้ว!' : 'เพิ่มลงตะกร้า'}
                   </button>
@@ -323,142 +214,136 @@ export default function Home() {
           })}
         </div>
 
-        {/* See all */}
         <div style={{ textAlign: 'center', marginTop: 48 }}>
-          <Link href="/menu" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            color: '#E05A00', fontWeight: 700, fontSize: 15,
-            border: '2px solid #E05A00',
-            padding: '12px 28px', borderRadius: 999,
-            textDecoration: 'none',
-            transition: 'all 0.2s ease',
-          }}
-            onMouseEnter={e => {
-              const a = e.currentTarget as HTMLAnchorElement;
-              a.style.background = '#E05A00'; a.style.color = '#fff';
-            }}
-            onMouseLeave={e => {
-              const a = e.currentTarget as HTMLAnchorElement;
-              a.style.background = 'transparent'; a.style.color = '#E05A00';
-            }}
-          >
-            ดูเมนูทั้งหมด →
-          </Link>
+          <Link href="/menu" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#E05A00', fontWeight: 700, fontSize: 15, border: '2px solid #E05A00', padding: '12px 28px', borderRadius: 999, textDecoration: 'none', transition: 'all 0.2s ease' }}
+            onMouseEnter={e => { const a = e.currentTarget as HTMLAnchorElement; a.style.background = '#E05A00'; a.style.color = '#fff'; }}
+            onMouseLeave={e => { const a = e.currentTarget as HTMLAnchorElement; a.style.background = 'transparent'; a.style.color = '#E05A00'; }}
+          >ดูเมนูทั้งหมด →</Link>
         </div>
       </section>
 
-      {/* ════ REVIEWS ════ */}
-      <section className="bg-white py-20 px-10 border-t border-orange-50">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10">
-
-          {/* Info */}
-          <div className="space-y-6">
-            <h4 className="font-black text-xl text-[#3d200a]">Customer reviews</h4>
-            <div className="space-y-4 text-sm text-gray-600 font-medium">
-              {[
-                { icon: '📍', text: 'Uthai Thani Province, Lan Sak District, Din Daeng Market.' },
-                { icon: '📞', text: '081-040-8048' },
-                { icon: '🕒', text: 'Saturday, Sunday' },
-              ].map(({ icon, text }) => (
-                <div key={text} className="flex gap-4 items-start">
-                  <span style={{
-                    background: '#FFF0E0', padding: '8px 10px', borderRadius: 12,
-                    fontSize: 18, lineHeight: 1, flexShrink: 0,
-                  }}>{icon}</span>
-                  <p style={{ margin: 0, lineHeight: 1.6 }}>{text}</p>
-                </div>
-              ))}
-            </div>
+      {/* ════ GALLERY ════ */}
+      <section className="py-24 px-10" style={{ background: '#fff' }}>
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-14">
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#E05A00', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>
+              แกลเลอรี
+            </p>
+            <h2 className="text-4xl font-black text-[#3d200a] mb-4">ความอร่อยที่มองเห็น</h2>
+            <div className="h-1.5 w-16 mx-auto rounded-full" style={{ background: 'linear-gradient(90deg,#FF7A20,#e3523d)' }} />
           </div>
 
-          {/* Review cards */}
-          {[
-            { name: 'คุณสมชาย', text: 'อร่อยเหมือนข้าวแม่ทำจริงๆ ครับ ประทับใจมาก', color: '#84cc16' },
-            { name: 'Customer', text: 'Easy to order, fast delivery, excellent taste.', color: '#fb923c' },
-          ].map((r, idx) => (
-            <div key={idx} style={{
-              background: '#FFFAF5',
-              border: '1px solid #FFE0C0',
-              borderRadius: 20,
-              padding: '28px 26px',
-              position: 'relative',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                position: 'absolute', top: 10, right: 18,
-                fontSize: 72, color: '#FFD0A0', lineHeight: 1,
-                fontWeight: 900, pointerEvents: 'none', opacity: 0.7,
-              }}>"</div>
-              <div style={{ display: 'flex', gap: 3, marginBottom: 14 }}>
-                {Array.from({ length: 5 }).map((_, k) => (
-                  <span key={k} style={{ color: '#FB923C', fontSize: 16 }}>★</span>
-                ))}
-              </div>
-              <p style={{ fontSize: 14, color: '#5a3828', lineHeight: 1.75, margin: '0 0 20px', fontStyle: 'italic', fontWeight: 500 }}>
-                "{r.text}"
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderTop: '1px solid #FFE0C0', paddingTop: 16 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: '#9a6050' }}>{r.name}</span>
-              </div>
-            </div>
-          ))}
+          {/* Masonry-style grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: 'auto', gap: 16 }}>
+            {GALLERY.map((g, idx) => {
+              const isHov = hoveredGallery === idx;
+              // first item spans 2 rows to create masonry feel
+              const spanStyle = idx === 0 ? { gridRow: 'span 2' } : {};
+              const tagC = TAG_COLOR[g.tag] || TAG_COLOR.popular;
+              return (
+                <div
+                  key={idx}
+                  onMouseEnter={() => setHoveredGallery(idx)}
+                  onMouseLeave={() => setHoveredGallery(null)}
+                  style={{
+                    ...spanStyle,
+                    position: 'relative',
+                    borderRadius: 20,
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    minHeight: idx === 0 ? 420 : 200,
+                    boxShadow: isHov ? '0 16px 40px rgba(220,80,20,0.2)' : '0 2px 12px rgba(0,0,0,0.08)',
+                    transform: isHov ? 'scale(1.02)' : 'scale(1)',
+                    transition: 'all 0.35s cubic-bezier(.4,0,.2,1)',
+                  }}
+                >
+                  {/* Image */}
+                  <img
+                    src={g.image}
+                    alt={g.label}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      transform: isHov ? 'scale(1.08)' : 'scale(1)',
+                      transition: 'transform 0.5s cubic-bezier(.4,0,.2,1)',
+                      display: 'block',
+                    }}
+                  />
+
+                  {/* Overlay gradient on hover */}
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    background: isHov ? 'linear-gradient(180deg, transparent 40%, rgba(61,32,10,0.7) 100%)' : 'linear-gradient(180deg, transparent 60%, rgba(61,32,10,0.3) 100%)',
+                    transition: 'background 0.35s ease',
+                  }} />
+
+                  {/* Tag badge */}
+                  <div style={{
+                    position: 'absolute', top: 12, left: 12,
+                    background: tagC.bg, color: tagC.text,
+                    fontSize: 11, fontWeight: 700,
+                    padding: '4px 12px', borderRadius: 999,
+                    letterSpacing: 0.5, textTransform: 'uppercase',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                  }}>
+                    {g.tag}
+                  </div>
+
+                  {/* Label on hover */}
+                  <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0,
+                    padding: '16px 18px',
+                    opacity: isHov ? 1 : 0,
+                    transform: isHov ? 'translateY(0)' : 'translateY(8px)',
+                    transition: 'all 0.3s ease',
+                  }}>
+                    <p style={{ margin: 0, color: '#fff', fontWeight: 800, fontSize: 15 }}>{g.label}</p>
+                    <p style={{ margin: '4px 0 0', color: 'rgba(255,220,150,0.85)', fontSize: 12, fontWeight: 600 }}>กดเพื่อดูเมนู →</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* CTA */}
+          <div style={{ textAlign: 'center', marginTop: 40 }}>
+            <Link href="/menu" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#E05A00', fontWeight: 700, fontSize: 15, border: '2px solid #E05A00', padding: '12px 28px', borderRadius: 999, textDecoration: 'none', transition: 'all 0.2s ease' }}
+              onMouseEnter={e => { const a = e.currentTarget as HTMLAnchorElement; a.style.background = '#E05A00'; a.style.color = '#fff'; }}
+              onMouseLeave={e => { const a = e.currentTarget as HTMLAnchorElement; a.style.background = 'transparent'; a.style.color = '#E05A00'; }}
+            >🖼️ ดูรูปทั้งหมด →</Link>
+          </div>
         </div>
       </section>
 
       {/* ════ FOOTER ════ */}
       <footer style={{ background: 'linear-gradient(135deg,#2a1200,#1a0800)', padding: '36px 40px' }}>
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-
-          {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{
-              width: 52, height: 52, background: 'rgba(255,255,255,0.1)',
-              borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '1.5px solid rgba(255,255,255,0.15)', overflow: 'hidden', padding: 6,
-            }}>
+            <div style={{ width: 52, height: 52, background: 'rgba(255,255,255,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid rgba(255,255,255,0.15)', overflow: 'hidden', padding: 6 }}>
               <img src='/images/logo.png' alt='logo' style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             </div>
             <div>
-              <div style={{ color: '#FFD58A', fontWeight: 800, fontSize: 16 }}>กับข้าวแม่</div>
+              <div style={{ color: '#FFD58A', fontWeight: 800, fontSize: 16 }}>ยายทอง</div>
               <div style={{ color: 'rgba(255,220,150,0.45)', fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>homemade</div>
             </div>
           </div>
 
-          {/* Center */}
           <div style={{ textAlign: 'center' }}>
             <h3 style={{ color: '#FFD58A', fontWeight: 800, fontSize: 20, margin: '0 0 4px' }}>I hope you like it. 🙏</h3>
-            <p style={{ color: 'rgba(255,200,120,0.4)', fontSize: 10, margin: 0, letterSpacing: 1.5, textTransform: 'uppercase' }}>
-              © 2026 Grandma's Restaurant. All rights reserved.
-            </p>
+            <p style={{ color: 'rgba(255,200,120,0.4)', fontSize: 10, margin: 0, letterSpacing: 1.5, textTransform: 'uppercase' }}>© 2026 Grandma's Restaurant. All rights reserved.</p>
           </div>
 
-          {/* Socials */}
           <div style={{ display: 'flex', gap: 12 }}>
             {[
               { src: 'https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png', alt: 'FB' },
               { src: 'https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg', alt: 'Line' },
               { src: 'https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg', alt: 'IG' },
             ].map(({ src, alt }) => (
-              <a key={alt} href='#' style={{
-                width: 40, height: 40,
-                background: 'rgba(255,255,255,0.08)',
-                borderRadius: '50%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: '1px solid rgba(255,255,255,0.12)',
-                padding: 9, overflow: 'hidden',
-                transition: 'all 0.2s ease',
-              }}
-                onMouseEnter={e => {
-                  const a = e.currentTarget as HTMLAnchorElement;
-                  a.style.background = 'rgba(255,255,255,0.2)';
-                  a.style.transform = 'scale(1.12)';
-                }}
-                onMouseLeave={e => {
-                  const a = e.currentTarget as HTMLAnchorElement;
-                  a.style.background = 'rgba(255,255,255,0.08)';
-                  a.style.transform = 'scale(1)';
-                }}
+              <a key={alt} href='#' style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.08)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.12)', padding: 9, overflow: 'hidden', transition: 'all 0.2s ease' }}
+                onMouseEnter={e => { const a = e.currentTarget as HTMLAnchorElement; a.style.background = 'rgba(255,255,255,0.2)'; a.style.transform = 'scale(1.12)'; }}
+                onMouseLeave={e => { const a = e.currentTarget as HTMLAnchorElement; a.style.background = 'rgba(255,255,255,0.08)'; a.style.transform = 'scale(1)'; }}
               >
                 <img src={src} alt={alt} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </a>
@@ -469,31 +354,13 @@ export default function Home() {
 
       {/* ════ Floating cart ════ */}
       {mounted && totalQty > 0 && (
-        <button
-          onClick={() => router.push('/cart')}
-          style={{
-            position: 'fixed', bottom: 80, right: 24,
-            background: 'linear-gradient(135deg,#FF7A20,#e3523d)',
-            color: '#fff',
-            border: 'none', borderRadius: 999,
-            padding: '13px 20px',
-            fontWeight: 800, fontSize: 14,
-            boxShadow: '0 8px 28px rgba(220,80,20,0.4)',
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 10,
-            zIndex: 50,
-            animation: 'cartBounce 0.5s ease',
-            transition: 'transform 0.2s ease',
-          }}
+        <button onClick={() => router.push('/cart')} style={{ position: 'fixed', bottom: 80, right: 24, background: 'linear-gradient(135deg,#FF7A20,#e3523d)', color: '#fff', border: 'none', borderRadius: 999, padding: '13px 20px', fontWeight: 800, fontSize: 14, boxShadow: '0 8px 28px rgba(220,80,20,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, zIndex: 50, animation: 'cartBounce 0.5s ease', transition: 'transform 0.2s ease' }}
           onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.06)'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
         >
           🛒
           <span>{totalQty} รายการ</span>
-          <span style={{
-            background: 'rgba(255,255,255,0.25)',
-            borderRadius: 999, padding: '2px 10px', fontSize: 12,
-          }}>ดูตะกร้า →</span>
+          <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 999, padding: '2px 10px', fontSize: 12 }}>ดูตะกร้า →</span>
         </button>
       )}
 

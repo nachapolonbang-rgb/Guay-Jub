@@ -89,3 +89,53 @@ model DiscountCode {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model InventoryItem {
+  id        Int      @id @default(autoincrement())
+  name      String
+  qty       Float
+  unit      String
+  minQty    Float
+  cost      Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  logs InventoryLog[]
+}
+
+model InventoryLog {
+  id        Int           @id @default(autoincrement())
+  itemId    Int
+  item      InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  prevQty   Float
+  newQty    Float
+  changedBy String        @default("staff")
+  note      String?
+  createdAt DateTime      @default(now())
+}
+
+// เพิ่มใน prisma/schema.prisma
+
+model ShopSettings {
+  id           Int      @id @default(1) // singleton row — always id=1
+  shopName     String   @default("ร้านก๋วยจั๊บป้าแดง")
+  shopPhone    String   @default("081-234-5678")
+  shopAddress  String   @default("123 ถ.สุขุมวิท กรุงเทพฯ")
+  shopNote     String   @default("เปิดทุกวัน ยกเว้นวันพุธ")
+  isOpen       Boolean  @default(true)
+
+  // hours: JSON array of 7 OpenHour objects (Mon–Sun)
+  // [{ open: "08:00", close: "16:00", closed: false }, ...]
+  hours        String   @default("[]")
+
+  // notification toggles
+  notifNew      Boolean @default(true)
+  notifLowStock Boolean @default(true)
+  notifDaily    Boolean @default(false)
+  dailyTime     String  @default("22:00")
+
+  updatedAt    DateTime @updatedAt
+}
+
+// หลังเพิ่มแล้วรัน:
+// npx prisma migrate dev --name add-shop-settings
