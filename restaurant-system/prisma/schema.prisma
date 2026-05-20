@@ -59,6 +59,7 @@ model MenuItem {
 
   ingredients String @default("[]")
   toppings    String @default("[]")
+  image String?
 }
 
 model Promotion {

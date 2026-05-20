@@ -1,37 +1,55 @@
 'use client';
 
+// ─── เปลี่ยนจากของเดิม: ───────────────────────────────────────────────────
+//  1. normalizeMenuItem ใช้ item.image จาก DB ก่อน ถ้าไม่มีค่อย fallback
+//  2. หมวดหมู่ดึงจาก /api/categories แทนที่จะ hardcode
+// ─────────────────────────────────────────────────────────────────────────
+
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Navbar from '@/src/backend/components/Navbar';
 import { useCart } from '@/src/backend/context/CartContext';
 import { useShop } from '@/src/backend/context/ShopContext';
-import CustomizeModal, { type CustomizeTarget, type CustomizeResult, type Topping } from '../../src/backend/components/CustomizeModal';
+import CustomizeModal, {
+  type CustomizeTarget,
+  type CustomizeResult,
+  type Topping,
+} from '../../src/backend/components/CustomizeModal';
 
 /* ── Types ─────────────────────────────────────────── */
 
 type MenuItem = {
-  id:           number;
-  name:         string;
-  price:        number;
-  category:     string;
-  image:        string;
-  badge?:       'new' | 'hot';
-  isAvailable:  boolean;
-  ingredients:  string[];
-  toppings:     Topping[];
+  id:          number;
+  name:        string;
+  price:       number;
+  category:    string;
+  image:       string;
+  badge?:      'new' | 'hot';
+  isAvailable: boolean;
+  ingredients: string[];
+  toppings:    Topping[];
 };
 
-const DEFAULT_IMAGES: Record<string, string> = {
+interface Category {
+  id:    number;
+  name:  string;
+  color: string; // ไม่ได้ใช้ใน customer page แต่ fetch มาพร้อมกัน
+}
+
+// ── รูป fallback ถ้าเมนูยังไม่มีรูป ──
+const FALLBACK_IMAGES: Record<string, string> = {
   'ก๋วยจั๊บ':    '/images/preview.png',
   'ผัก':          '/images/preview-1.png',
   'เครื่องดื่ม': '/images/preview.png',
 };
+const DEFAULT_FALLBACK = '/images/preview.png';
 
-const CATEGORY_META: Record<string, { label: string; icon: string }> = {
-  'ก๋วยจั๊บ':    { label: 'ก๋วยจั๊บ',    icon: '🍜' },
-  'ผัก':          { label: 'ผัก',          icon: '🥬' },
-  'เครื่องดื่ม': { label: 'เครื่องดื่ม', icon: '🥤' },
+const CATEGORY_ICON: Record<string, string> = {
+  'ก๋วยจั๊บ':    '🍜',
+  'ผัก':          '🥬',
+  'เครื่องดื่ม': '🥤',
 };
+const DEFAULT_ICON = '🍽️';
 
 function normalizeMenuItem(item: unknown): MenuItem {
   const raw      = item as Record<string, unknown>;
@@ -40,33 +58,29 @@ function normalizeMenuItem(item: unknown): MenuItem {
   let ingredients: string[] = [];
   try {
     const val = raw.ingredients;
-    if (typeof val === 'string') {
-      ingredients = JSON.parse(val);
-    } else if (Array.isArray(val)) {
-      ingredients = val.map(String);
-    }
-  } catch {
-    ingredients = [];
-  }
+    if (typeof val === 'string') ingredients = JSON.parse(val);
+    else if (Array.isArray(val)) ingredients = val.map(String);
+  } catch { ingredients = []; }
 
   let toppings: Topping[] = [];
   try {
     const val = raw.toppings;
-    if (typeof val === 'string') {
-      toppings = JSON.parse(val) as Topping[];
-    } else if (Array.isArray(val)) {
-      toppings = val as Topping[];
-    }
-  } catch {
-    toppings = [];
-  }
+    if (typeof val === 'string') toppings = JSON.parse(val) as Topping[];
+    else if (Array.isArray(val)) toppings = val as Topping[];
+  } catch { toppings = []; }
+
+  // ✅ ใช้รูปจาก DB ก่อน ถ้าไม่มีค่อย fallback ตามหมวดหมู่
+  const image =
+    raw.image && String(raw.image).trim()
+      ? String(raw.image)
+      : (FALLBACK_IMAGES[category] ?? DEFAULT_FALLBACK);
 
   return {
     id:          Number(raw.id ?? 0),
     name:        String(raw.name ?? ''),
     price:       Number(raw.price ?? 0),
     category,
-    image:       DEFAULT_IMAGES[category] ?? '/images/preview.png',
+    image,
     badge:       Number(raw.sold ?? 0) > 0 ? 'hot' : undefined,
     isAvailable: Boolean(raw.isAvailable ?? true),
     ingredients,
@@ -80,18 +94,12 @@ function Toast({ show, msg }: { show: boolean; msg: string }) {
     <div style={{
       position: 'fixed', bottom: 32, left: '50%',
       transform: `translateX(-50%) translateY(${show ? 0 : 12}px)`,
-      opacity: show ? 1 : 0,
-      pointerEvents: 'none',
+      opacity: show ? 1 : 0, pointerEvents: 'none',
       transition: 'all 0.3s cubic-bezier(.4,0,.2,1)',
       background: 'linear-gradient(135deg,#1a0a00,#3d1800)',
-      color: '#FFD58A',
-      padding: '10px 22px',
-      borderRadius: 999,
-      fontSize: 13, fontWeight: 600,
-      boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
-      zIndex: 200,
-      display: 'flex', alignItems: 'center', gap: 8,
-      whiteSpace: 'nowrap',
+      color: '#FFD58A', padding: '10px 22px', borderRadius: 999,
+      fontSize: 13, fontWeight: 600, boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+      zIndex: 200, display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap',
     }}>
       <span style={{ fontSize: 16 }}>✓</span> {msg}
     </div>
@@ -145,6 +153,8 @@ function MenuCard({
     return () => obs.disconnect();
   }, []);
 
+  const icon = CATEGORY_ICON[item.category] ?? DEFAULT_ICON;
+
   return (
     <div
       ref={ref}
@@ -188,7 +198,7 @@ function MenuCard({
           padding: '3px 10px', borderRadius: 999, color: '#7a4a20',
           fontWeight: 600, backdropFilter: 'blur(4px)',
         }}>
-          {CATEGORY_META[item.category]?.icon ?? '🍽️'} {CATEGORY_META[item.category]?.label ?? item.category}
+          {icon} {item.category}
         </div>
       </div>
 
@@ -197,19 +207,15 @@ function MenuCard({
         <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: '#1a0a00', letterSpacing: '-0.2px' }}>
           {item.name}
         </h3>
-
-        {/* วัตถุดิบย่อๆ */}
         {item.ingredients.length > 0 && (
           <p style={{ margin: '0 0 6px', fontSize: 11, color: '#b08060', lineHeight: 1.5 }}>
             {item.ingredients.join(' · ')}
           </p>
         )}
-
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
           <span style={{ fontSize: 20, fontWeight: 800, color: '#E05A00', letterSpacing: '-0.5px' }}>
             ฿{item.price}
           </span>
-
           <button
             disabled={!isOpen}
             onClick={onAdd}
@@ -222,8 +228,7 @@ function MenuCard({
               boxShadow: isOpen && !added ? '0 4px 16px rgba(224,90,0,0.4)' : 'none',
               transform: added ? 'scale(1.05)' : 'scale(1)',
               transition: 'all 0.25s cubic-bezier(.34,1.56,.64,1)',
-              display: 'flex', alignItems: 'center', gap: 4,
-              whiteSpace: 'nowrap',
+              display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
             }}
           >
             {added ? '✓ เพิ่มแล้ว' : '+ เลือก'}
@@ -237,30 +242,38 @@ function MenuCard({
 /* ── Main Page ──────────────────────────────────────── */
 export default function MenuPage() {
   const { cart, addToCart } = useCart();
-  const { isOpen } = useShop();
+  const { isOpen }          = useShop();
 
-  const [menu, setMenu]               = useState<MenuItem[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [search, setSearch]           = useState('');
-  const [activeCat, setActiveCat]     = useState('all');
-  const [toast, setToast]             = useState({ show: false, msg: '' });
-  const [addedItemIds, setAddedItemIds] = useState<number[]>([]);
-  const [customizeTarget, setCustomizeTarget] = useState<CustomizeTarget | null>(null);
+  const [menu,       setMenu]       = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [search,     setSearch]     = useState('');
+  const [activeCat,  setActiveCat]  = useState('all');
+  const [toast,      setToast]      = useState({ show: false, msg: '' });
+  const [addedItemIds,     setAddedItemIds]     = useState<number[]>([]);
+  const [customizeTarget,  setCustomizeTarget]  = useState<CustomizeTarget | null>(null);
 
   function showToast(msg: string) {
     setToast({ show: true, msg });
     window.setTimeout(() => setToast(prev => ({ ...prev, show: false })), 1800);
   }
-
   function markAdded(id: number) {
     setAddedItemIds(prev => [...prev, id]);
     window.setTimeout(() => setAddedItemIds(prev => prev.filter(i => i !== id)), 1500);
   }
 
+  // ✅ โหลด categories จาก API
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(r => r.json())
+      .then((data: Category[]) => setCategories(Array.isArray(data) ? data : []))
+      .catch(() => setCategories([]));
+  }, []);
+
   useEffect(() => {
     fetch('/api/menu')
       .then(r => r.json())
-      .then(data => {
+      .then((data: unknown[]) => {
         const items = Array.isArray(data) ? data : [];
         setMenu(items.map(normalizeMenuItem).filter(i => i.isAvailable));
       })
@@ -268,13 +281,22 @@ export default function MenuPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const categories = [
+  // ✅ สร้าง category tabs จาก categories API + เมนูที่มีอยู่
+  const usedCats = Array.from(new Set(menu.map(i => i.category)));
+  const catTabs = [
     { key: 'all', label: 'ทั้งหมด', icon: '🍽️' },
-    ...Array.from(new Set(menu.map(i => i.category))).map(cat => ({
-      key: cat,
-      label: CATEGORY_META[cat]?.label ?? cat,
-      icon:  CATEGORY_META[cat]?.icon  ?? '🍽️',
-    })),
+    // เรียงตามลำดับที่ตั้งใน admin
+    ...categories
+      .filter(c => usedCats.includes(c.name))
+      .map(c => ({
+        key:   c.name,
+        label: c.name,
+        icon:  CATEGORY_ICON[c.name] ?? DEFAULT_ICON,
+      })),
+    // หมวดหมู่ที่อยู่ในเมนูแต่ไม่ได้อยู่ใน categories (edge case)
+    ...usedCats
+      .filter(cat => !categories.find(c => c.name === cat))
+      .map(cat => ({ key: cat, label: cat, icon: CATEGORY_ICON[cat] ?? DEFAULT_ICON })),
   ];
 
   const filtered = menu.filter(item =>
@@ -301,7 +323,6 @@ export default function MenuPage() {
         note:     result.note,
       },
     });
-
     markAdded(item.id);
     showToast(`เพิ่ม ${item.name} ลงตะกร้าแล้ว`);
     setCustomizeTarget(null);
@@ -309,22 +330,10 @@ export default function MenuPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#FFF6EE 0%,#FEE8CC 100%)' }}>
-
       <style>{`
-        @keyframes shimmer {
-          0%   { background-position: -400px 0 }
-          100% { background-position:  400px 0 }
-        }
-        .skeleton {
-          background: linear-gradient(90deg,#f0e4d4 25%,#f8efe4 50%,#f0e4d4 75%);
-          background-size: 400px 100%;
-          animation: shimmer 1.4s infinite;
-          border-radius: 14px;
-        }
-        @keyframes slideDown {
-          from { opacity:0; transform:translateY(-8px) }
-          to   { opacity:1; transform:translateY(0) }
-        }
+        @keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+        .skeleton { background:linear-gradient(90deg,#f0e4d4 25%,#f8efe4 50%,#f0e4d4 75%); background-size:400px 100%; animation:shimmer 1.4s infinite; border-radius:14px; }
+        @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
       `}</style>
 
       {!isOpen && <ShopClosedBanner />}
@@ -346,9 +355,7 @@ export default function MenuPage() {
         <div style={{ position: 'relative', marginBottom: 28 }}>
           <span style={{ position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)', fontSize: 18, pointerEvents: 'none' }}>🔍</span>
           <input
-            type="text"
-            placeholder="ค้นหาเมนู..."
-            disabled={!isOpen}
+            type="text" placeholder="ค้นหาเมนู..." disabled={!isOpen}
             onChange={e => setSearch(e.target.value)}
             style={{
               width: '100%', padding: '14px 20px 14px 50px', borderRadius: 999,
@@ -362,15 +369,13 @@ export default function MenuPage() {
           />
         </div>
 
-        {/* Category tabs */}
+        {/* Category tabs — ดึงจาก API แล้ว */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
-          {categories.map((cat, i) => {
+          {catTabs.map((cat, i) => {
             const active = activeCat === cat.key;
             return (
               <button
-                key={cat.key}
-                disabled={!isOpen}
-                onClick={() => setActiveCat(cat.key)}
+                key={cat.key} disabled={!isOpen} onClick={() => setActiveCat(cat.key)}
                 style={{
                   padding: '9px 18px', borderRadius: 999, border: 'none',
                   background: active ? 'linear-gradient(135deg,#FF7A20,#E05A00)' : 'rgba(255,255,255,0.85)',
@@ -413,13 +418,9 @@ export default function MenuPage() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 20 }}>
             {filtered.map(item => (
-              <MenuCard
-                key={item.id}
-                item={item}
-                added={addedItemIds.includes(item.id)}
-                isOpen={isOpen}
-                onAdd={() => handleOpenCustomize(item)}
-              />
+              <MenuCard key={item.id} item={item}
+                added={addedItemIds.includes(item.id)} isOpen={isOpen}
+                onAdd={() => handleOpenCustomize(item)} />
             ))}
           </div>
         )}
@@ -436,24 +437,18 @@ export default function MenuPage() {
           }}>
             🛒
             <span>{totalQty} รายการในตะกร้า</span>
-            <span style={{
-              background: '#FF7A20', color: '#fff',
-              borderRadius: 999, padding: '2px 10px', fontSize: 12,
-            }}>
+            <span style={{ background: '#FF7A20', color: '#fff', borderRadius: 999, padding: '2px 10px', fontSize: 12 }}>
               ดูตะกร้า →
             </span>
           </div>
         )}
-
       </div>
 
-      {/* ✅ CustomizeModal */}
       <CustomizeModal
         item={customizeTarget}
         onConfirm={handleConfirmCustomize}
         onClose={() => setCustomizeTarget(null)}
       />
-
       <Toast show={toast.show} msg={toast.msg} />
     </div>
   );

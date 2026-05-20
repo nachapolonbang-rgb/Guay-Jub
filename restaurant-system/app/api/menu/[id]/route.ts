@@ -1,46 +1,57 @@
+// app/api/menu/[id]/route.ts  (แก้ไขจากของเดิม — เพิ่ม image field)
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id: rawId } = await params;
+    const item = await prisma.menuItem.findUnique({ where: { id: Number(rawId) } });
+    if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json(item);
+  } catch {
+    return NextResponse.json({ error: 'Failed to fetch item' }, { status: 500 });
+  }
+}
+
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params;  // ✅ await params
-    const body = await req.json();
-    const updated = await prisma.menuItem.update({
-      where: { id: Number(id) },
-      data: {
-        ...(body.name != null     && { name: body.name }),
-        ...(body.price != null    && { price: Number(body.price) }),
-        ...(body.cost != null     && { cost: Number(body.cost) }),
-        ...(body.category != null && { category: body.category }),
-        ...(body.ingredients != null && {
-          ingredients: typeof body.ingredients === 'string'
-            ? body.ingredients
-            : JSON.stringify(body.ingredients ?? []),
-        }),
-        ...(body.toppings != null && {
-          toppings: typeof body.toppings === 'string'
-            ? body.toppings
-            : JSON.stringify(body.toppings ?? []),
-        }),
-        ...(body.available != null && { isAvailable: Boolean(body.available) }),
-      },
-    });
+    const [body, { id: rawId }] = await Promise.all([req.json(), params]);
+    const id = Number(rawId);
+
+    const data: Record<string, unknown> = {};
+    if (body.name        != null) data.name        = body.name;
+    if (body.price       != null) data.price       = Number(body.price);
+    if (body.cost        != null) data.cost        = Number(body.cost);
+    if (body.category    != null) data.category    = body.category;
+    if (body.available   != null) data.isAvailable = Boolean(body.available);
+    if (body.isAvailable != null) data.isAvailable = Boolean(body.isAvailable);
+    // ✅ image field ใหม่
+    if (body.image       != null) data.image       = body.image;
+
+    if (body.ingredients != null) {
+      data.ingredients = typeof body.ingredients === 'string'
+        ? body.ingredients
+        : JSON.stringify(body.ingredients);
+    }
+    if (body.toppings != null) {
+      data.toppings = typeof body.toppings === 'string'
+        ? body.toppings
+        : JSON.stringify(body.toppings);
+    }
+
+    const updated = await prisma.menuItem.update({ where: { id }, data });
     return NextResponse.json(updated);
-  } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: 'Failed to update' }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Failed to update item' }, { status: 500 });
   }
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params;  // ✅ await params
-    await prisma.menuItem.delete({
-      where: { id: Number(id) },
-    });
-    return NextResponse.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
+    const { id: rawId } = await params;
+    await prisma.menuItem.delete({ where: { id: Number(rawId) } });
+    return NextResponse.json({ deleted: Number(rawId) });
+  } catch {
+    return NextResponse.json({ error: 'Failed to delete item' }, { status: 500 });
   }
 }

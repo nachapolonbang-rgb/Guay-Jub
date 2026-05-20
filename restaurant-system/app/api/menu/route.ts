@@ -1,3 +1,4 @@
+// app/api/menu/route.ts  (แก้ไขจากของเดิม — เพิ่ม image field)
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
@@ -21,9 +22,9 @@ export async function POST(req: Request) {
 
     const menu = await prisma.menuItem.create({
       data: {
-        name: body.name,
-        price: Number(body.price),
-        cost: Number(body.cost),
+        name:     body.name,
+        price:    Number(body.price),
+        cost:     Number(body.cost),
         category: body.category,
         ingredients: typeof body.ingredients === 'string'
           ? body.ingredients
@@ -32,9 +33,8 @@ export async function POST(req: Request) {
           ? body.toppings
           : JSON.stringify(body.toppings ?? []),
         isAvailable: body.available != null ? Boolean(body.available) : true,
-        // ✅ ลบ description ออก (ไม่มีใน schema)
-        // ✅ ลบ available ออก (schema ใช้ isAvailable + มี default อยู่แล้ว)
-        // ✅ ลบ sold ออก (มี default(0) ใน schema อยู่แล้ว)
+        // ✅ image field ใหม่ — เก็บ path เช่น /images/menu/xxx.jpg
+        ...(body.image ? { image: body.image } : {}),
       },
     });
     return NextResponse.json(menu, { status: 201 });
